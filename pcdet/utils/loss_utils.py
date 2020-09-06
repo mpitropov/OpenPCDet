@@ -230,3 +230,73 @@ def get_corner_loss_lidar(pred_bbox3d: torch.Tensor, gt_bbox3d: torch.Tensor):
     corner_loss = WeightedSmoothL1Loss.smooth_l1_loss(corner_dist, beta=1.0)
 
     return corner_loss.mean(dim=1)
+
+
+class VarRegLoss(nn.Module):
+    """
+    Calculate loss for the regression log variance output.
+    """
+    def __init__(self, 
+                 beta: float = 1.0 / 9.0,
+                 code_weights: list = None,
+                 l1_weight: float = 0.0,
+                 var_weight: float = 1.0,
+                 calib_weight: float = 0.05):
+        super(VarRegLoss, self).__init__()
+        self.beta = beta
+        if code_weights is not None:
+            self.code_weights = np.array(code_weights, dtype=np.float32)
+            self.code_weights = torch.from_numpy(self.code_weights).cuda()
+        self.l1_weight = l1_weight
+        self.var_weight = var_weight
+        self.calib_weight = calib_weight
+
+    @staticmethod
+    def smooth_l1_loss(diff, beta):
+        if beta < 1e-5:
+            loss = torch.abs(diff)
+        else:
+            n = torch.abs(diff)
+            loss = torch.where(n < beta, 0.5 * n ** 2 / beta, n - 0.5 * beta)
+
+        return loss
+
+    def forward(self, reg_preds: torch.Tensor, var_preds: torch.Tensor, gt_targets: torch.Tensor, weights: torch.Tensor):
+        """
+        Args:
+            reg_preds: (B, #anchors, 7) float tensor.
+                Predicted regression values for each anchor.
+            gt_targets: (B, #anchors, 7) float tensor.
+                Regression value targets.
+            var_preds: (B, #anchors, 7) float tensor.
+                Predicted regression value log variances for each anchor.
+
+        Returns:
+            loss: (B, #anchors, 7) float tensor.
+                loss for each anchor and 7 respective log variances
+        """
+
+        gt_targets = torch.where(torch.isnan(gt_targets), reg_preds, gt_targets)  # ignore nan targets
+
+        diff = gt_targets - reg_preds
+        # code-wise weighting
+        if self.code_weights is not None:
+            diff = diff * self.code_weights.view(1, 1, -1)
+
+        var_preds = torch.clamp(var_preds, min=-10, max=10)
+        diff_clone = diff.clone().detach()
+
+        loss_l1 = self.smooth_l1_loss(diff, self.beta)
+        loss_var = 0.5*(torch.exp(-var_preds)*torch.pow(diff, 2)) + 0.5*var_preds
+        loss_calib = self.smooth_l1_loss(torch.exp(var_preds) - torch.pow(diff_clone, 2), self.beta)
+
+        # anchor-wise weighting
+        if weights is not None:
+            assert weights.shape[0] == loss_l1.shape[0] and weights.shape[1] == loss_l1.shape[1]
+            loss_l1 *= weights.unsqueeze(-1)
+            loss_var *= weights.unsqueeze(-1)
+            loss_calib *= weights.unsqueeze(-1)
+
+        loss = self.l1_weight*loss_l1 + self.var_weight*loss_var + self.calib_weight*loss_calib
+
+        return loss, loss_l1.clone().detach(), loss_var.clone().detach(), loss_calib.clone().detach()

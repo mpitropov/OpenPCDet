@@ -63,3 +63,57 @@ def multi_classes_nms(cls_scores, box_preds, nms_config, score_thresh=None):
     pred_boxes = torch.cat(pred_boxes, dim=0)
 
     return pred_scores, pred_labels, pred_boxes
+
+
+def multi_classes_nms_var(cls_scores, box_preds, var_preds, nms_config, score_thresh=None):
+    """
+    Args:
+        cls_scores: (N, num_class)
+        box_preds: (N, 7 + C)
+        var_preds: (N, 1 + C)
+        nms_config:
+        score_thresh:
+
+    Returns:
+
+    """
+    cur_offset_idx = 0
+    pred_scores, pred_labels, pred_boxes, pred_vars, selected_ids = [], [], [], [], []
+    for k in range(cls_scores.shape[1]):
+        src_box_scores = cls_scores[:, k]
+        src_box_preds = box_preds
+
+        if score_thresh is not None:
+            scores_mask = (cls_scores[:, k] >= score_thresh)
+            box_scores = cls_scores[scores_mask, k]
+            cur_box_preds = box_preds[scores_mask]
+        else:
+            box_scores = cls_scores[:, k]
+
+        selected = []
+        if box_scores.shape[0] > 0:
+            box_scores_nms, indices = torch.topk(box_scores, k=min(nms_config.NMS_PRE_MAXSIZE, box_scores.shape[0]))
+            boxes_for_nms = cur_box_preds[indices]
+            keep_idx, selected_scores = getattr(iou3d_nms_utils, nms_config.NMS_TYPE)(
+                    boxes_for_nms[:, 0:7], box_scores_nms, nms_config.NMS_THRESH, **nms_config
+            )
+            selected = indices[keep_idx[:nms_config.NMS_POST_MAXSIZE]]
+
+        pred_scores.append(src_box_scores)
+        pred_labels.append(src_box_scores.new_ones(len(src_box_scores)).long() * k)
+        pred_boxes.append(src_box_preds)
+        pred_vars.append(var_preds)
+
+        if score_thresh is not None:
+            original_idxs = scores_mask.nonzero().view(-1)
+            selected = original_idxs[selected]
+        selected_ids.append(selected + cur_offset_idx)
+        cur_offset_idx += len(src_box_scores)
+
+    pred_scores = torch.cat(pred_scores, dim=0)
+    pred_labels = torch.cat(pred_labels, dim=0)
+    pred_boxes = torch.cat(pred_boxes, dim=0)
+    pred_vars = torch.cat(pred_vars, dim=0)
+    selected = torch.cat(selected_ids, dim=0)
+
+    return pred_scores, pred_labels, pred_boxes, pred_vars, selected
