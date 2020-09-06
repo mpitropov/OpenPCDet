@@ -7,13 +7,17 @@ from pcdet.utils import common_utils
 from .dataset import DatasetTemplate
 from .kitti.kitti_dataset import KittiDataset
 from .nuscenes.nuscenes_dataset import NuScenesDataset
+from .nuscenes.nuscenes_dataset_var import NuScenesDatasetVAR
 from .cadc.cadc_dataset import CadcDataset
+from .cadc.cadc_dataset_var import CadcDatasetVAR
 
 __all__ = {
     'DatasetTemplate': DatasetTemplate,
     'KittiDataset': KittiDataset,
     'NuScenesDataset': NuScenesDataset,
-    'CadcDataset': CadcDataset
+    'NuScenesDatasetVAR': NuScenesDatasetVAR,
+    'CadcDataset': CadcDataset,
+    'CadcDatasetVAR': CadcDatasetVAR
 }
 
 
