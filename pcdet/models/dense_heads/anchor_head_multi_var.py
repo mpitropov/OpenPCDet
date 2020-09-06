@@ -141,8 +141,8 @@ class AnchorHeadMultiVAR(AnchorHeadMulti):
 
             data_dict['batch_cls_preds'] = batch_cls_preds
             data_dict['batch_box_preds'] = batch_box_preds
-            data_dict['cls_preds_normalized'] = False
             data_dict['batch_var_preds'] = batch_var_preds
+            data_dict['cls_preds_normalized'] = False
 
         return data_dict
 
