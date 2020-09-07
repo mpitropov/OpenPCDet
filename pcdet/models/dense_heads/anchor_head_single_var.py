@@ -8,7 +8,7 @@ class AnchorHeadSingleVAR(AnchorHeadSingle):
     def __init__(self, model_cfg, input_channels, *args, **kwargs):
         super().__init__(model_cfg, input_channels, *args, **kwargs)
         self.conv_var = nn.Conv2d(
-            input_channels, self.num_anchors_per_location * self.code_size,
+            input_channels, self.num_anchors_per_location * self.box_coder.code_size,
             kernel_size=1
         )
         nn.init.constant_(self.conv_var.weight, 0)

@@ -22,7 +22,7 @@ class NuScenesDatasetVAR(NuScenesDataset):
                 'boxes_lidar': np.zeros([num_samples, 7]), 
                 'pred_labels': np.zeros(num_samples),
                 'pred_vars': np.zeros([num_samples, 7]),
-                'anchor_scores': np.zeros(num_anchors)
+                'anchor_scores': np.zeros(num_anchors),
                 'anchor_boxes': np.zeros([num_anchors, 7]),
                 'anchor_labels': np.zeros(num_anchors),
                 'anchor_vars': np.zeros([num_anchors, 7]),
