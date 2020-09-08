@@ -1,11 +1,11 @@
 import numpy as np
 
 from ...utils import box_utils
-from .cadc_dataset import CadcDataset
+from .kitti_dataset import KittiDataset
 
-class CadcDatasetVAR(CadcDataset):
+class KittiDatasetVAR(KittiDataset):
     @staticmethod
-    def _generate_prediction_dicts(batch_dict, pred_dicts, class_names, filter_thresholds, output_path=None):
+    def generate_prediction_dicts(batch_dict, pred_dicts, class_names, output_path=None):
         """
         Args:
             batch_dict:
@@ -28,7 +28,7 @@ class CadcDatasetVAR(CadcDataset):
                 'alpha': np.zeros(num_samples),
                 'bbox': np.zeros([num_samples, 4]),
                 'dimensions': np.zeros([num_samples, 3]),
-                'location': np.zeros([num_samples, 3]), 
+                'location': np.zeros([num_samples, 3]),
                 'rotation_y': np.zeros(num_samples),
                 'score': np.zeros(num_samples),
                 'boxes_lidar': np.zeros([num_samples, 7]),
@@ -42,20 +42,7 @@ class CadcDatasetVAR(CadcDataset):
             }
             return ret_dict
 
-        # Return a list of index which satisfies score and distance criteria
-        def filter_criteria(pred_scores, pred_locations, score_threshold, distance_threshold):
-            x, y, z = pred_locations[:,0], pred_locations[:,1], pred_locations[:,2]
-            distance = np.sqrt(np.square(x)+np.square(y)+np.square(z))
-            index = []
-            for i in range(pred_scores.shape[0]):
-                if pred_scores[i] >= score_threshold and distance[i] < distance_threshold:
-                    index.append(True)
-                else:
-                    index.append(False)
-            index = np.array(index)
-            return index
-
-        def generate_single_sample_dict(batch_index, box_dict, filter_thresholds):
+        def generate_single_sample_dict(batch_index, box_dict):
             pred_scores = box_dict['pred_scores'].cpu().numpy()
             pred_boxes = box_dict['pred_boxes'].cpu().numpy()
             pred_labels = box_dict['pred_labels'].cpu().numpy()
@@ -66,20 +53,13 @@ class CadcDatasetVAR(CadcDataset):
             anchor_vars = box_dict['anchor_vars'].cpu().numpy()
             selected = box_dict['selected'].cpu().numpy()
 
-            calib = batch_dict['calib'][batch_index]
-            image_shape = batch_dict['image_shape'][batch_index]
-            pred_boxes_camera = box_utils.boxes3d_lidar_to_kitti_camera(pred_boxes, calib)
-
-            # filter by score and distance
-            _, distance_threshold, score_threshold = filter_thresholds
-            index = filter_criteria(pred_scores, pred_boxes_camera[:,0:3], score_threshold, distance_threshold)
-            pred_scores, pred_boxes, pred_labels, pred_boxes_camera = \
-            pred_scores[index], pred_boxes[index], pred_labels[index], pred_boxes_camera[index]
-
             pred_dict = get_template_prediction(pred_scores.shape[0], anchor_scores.shape[0])
             if pred_scores.shape[0] == 0:
                 return pred_dict
 
+            calib = batch_dict['calib'][batch_index]
+            image_shape = batch_dict['image_shape'][batch_index]
+            pred_boxes_camera = box_utils.boxes3d_lidar_to_kitti_camera(pred_boxes, calib)
             pred_boxes_img = box_utils.boxes3d_kitti_camera_to_imageboxes(
                 pred_boxes_camera, calib, image_shape=image_shape
             )
@@ -104,10 +84,9 @@ class CadcDatasetVAR(CadcDataset):
 
         annos = []
         for index, box_dict in enumerate(pred_dicts):
-            # frame_id = batch_dict['frame_id'][index]
-            frame_id = batch_dict['sample_idx'][index]
+            frame_id = batch_dict['frame_id'][index]
 
-            single_pred_dict = generate_single_sample_dict(index, box_dict, filter_thresholds)
+            single_pred_dict = generate_single_sample_dict(index, box_dict)
             single_pred_dict['frame_id'] = frame_id
             annos.append(single_pred_dict)
 
@@ -125,4 +104,5 @@ class CadcDatasetVAR(CadcDataset):
                                  dims[idx][1], dims[idx][2], dims[idx][0], loc[idx][0],
                                  loc[idx][1], loc[idx][2], single_pred_dict['rotation_y'][idx],
                                  single_pred_dict['score'][idx]), file=f)
+
         return annos

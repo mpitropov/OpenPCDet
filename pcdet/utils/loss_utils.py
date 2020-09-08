@@ -252,6 +252,15 @@ class VarRegLoss(nn.Module):
         self.calib_weight = calib_weight
 
     @staticmethod
+    def add_sin_difference(boxes1, boxes2, dim=6):
+        assert dim != -1
+        rad_pred_encoding = torch.sin(boxes1[..., dim:dim + 1]) * torch.cos(boxes2[..., dim:dim + 1])
+        rad_tg_encoding = torch.cos(boxes1[..., dim:dim + 1]) * torch.sin(boxes2[..., dim:dim + 1])
+        boxes1 = torch.cat([boxes1[..., :dim], rad_pred_encoding, boxes1[..., dim + 1:]], dim=-1)
+        boxes2 = torch.cat([boxes2[..., :dim], rad_tg_encoding, boxes2[..., dim + 1:]], dim=-1)
+        return boxes1, boxes2
+
+    @staticmethod
     def smooth_l1_loss(diff, beta):
         if beta < 1e-5:
             loss = torch.abs(diff)
@@ -261,7 +270,8 @@ class VarRegLoss(nn.Module):
 
         return loss
 
-    def forward(self, reg_preds: torch.Tensor, var_preds: torch.Tensor, gt_targets: torch.Tensor, weights: torch.Tensor):
+    def forward(self, reg_preds: torch.Tensor, var_preds: torch.Tensor, \
+        gt_targets: torch.Tensor, anchors: torch.Tensor, box_coder, weights: torch.Tensor):
         """
         Args:
             reg_preds: (B, #anchors, 7) float tensor.
@@ -275,20 +285,23 @@ class VarRegLoss(nn.Module):
             loss: (B, #anchors, 7) float tensor.
                 loss for each anchor and 7 respective log variances
         """
-
         gt_targets = torch.where(torch.isnan(gt_targets), reg_preds, gt_targets)  # ignore nan targets
 
-        diff = gt_targets - reg_preds
+        # sin(a - b) = sinacosb-cosasinb
+        reg_preds_sin, gt_targets_sin = self.add_sin_difference(reg_preds, gt_targets)
+        diff = gt_targets_sin - reg_preds_sin
         # code-wise weighting
         if self.code_weights is not None:
             diff = diff * self.code_weights.view(1, 1, -1)
 
         var_preds = torch.clamp(var_preds, min=-10, max=10)
-        diff_clone = diff.clone().detach()
+        diff_decoded = box_coder.decode_torch(gt_targets, anchors) - \
+                       box_coder.decode_torch(reg_preds, anchors)
 
         loss_l1 = self.smooth_l1_loss(diff, self.beta)
-        loss_var = 0.5*(torch.exp(-var_preds)*torch.pow(diff, 2)) + 0.5*var_preds
-        loss_calib = self.smooth_l1_loss(torch.exp(var_preds) - torch.pow(diff_clone, 2), self.beta)
+        loss_var = 0.5*(torch.exp(-var_preds)*torch.pow(diff_decoded, 2)) + 0.5*var_preds
+        loss_calib = self.smooth_l1_loss(torch.exp(var_preds) - \
+                                         torch.pow(diff_decoded.clone().detach(), 2), self.beta)
 
         # anchor-wise weighting
         if weights is not None:
