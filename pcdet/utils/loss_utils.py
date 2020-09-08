@@ -270,8 +270,8 @@ class VarRegLoss(nn.Module):
 
         return loss
 
-    def forward(self, reg_preds: torch.Tensor, var_preds: torch.Tensor, \
-        gt_targets: torch.Tensor, anchors: torch.Tensor, box_coder, weights: torch.Tensor):
+    def forward(self, reg_preds: torch.Tensor, var_preds: torch.Tensor, gt_targets: torch.Tensor, \
+        anchors: torch.Tensor, box_coder, take_sin_diff: bool, weights: torch.Tensor):
         """
         Args:
             reg_preds: (B, #anchors, 7) float tensor.
@@ -288,8 +288,12 @@ class VarRegLoss(nn.Module):
         gt_targets = torch.where(torch.isnan(gt_targets), reg_preds, gt_targets)  # ignore nan targets
 
         # sin(a - b) = sinacosb-cosasinb
-        reg_preds_sin, gt_targets_sin = self.add_sin_difference(reg_preds, gt_targets)
-        diff = gt_targets_sin - reg_preds_sin
+        if take_sin_diff:
+            reg_preds_sin, gt_targets_sin = self.add_sin_difference(reg_preds, gt_targets)
+            diff = gt_targets_sin - reg_preds_sin
+        else:
+            diff = gt_targets - reg_preds
+
         # code-wise weighting
         if self.code_weights is not None:
             diff = diff * self.code_weights.view(1, 1, -1)

@@ -211,12 +211,13 @@ class AnchorHeadMultiVAR(AnchorHeadMulti):
             )
             box_reg_target = box_reg_targets[:, start_idx:start_idx + box_pred.shape[1]]
             reg_weight = reg_weights[:, start_idx:start_idx + box_pred.shape[1]]
-            # sin(a - b) = sinacosb-cosasinb
             if box_dir_cls_preds is not None:
-                box_pred_sin, reg_target_sin = self.add_sin_difference(box_pred, box_reg_target)
-                loc_loss_src, l1_loss_src, var_loss_src, calib_loss_src = self.reg_loss_func(box_pred_sin, var_preds[idx], reg_target_sin, weights=reg_weight)  # [N, M]
+                take_sin_diff = True
             else:
-                loc_loss_src, l1_loss_src, var_loss_src, calib_loss_src = self.reg_loss_func(box_pred, var_preds[idx], box_reg_target, weights=reg_weight)  # [N, M]
+                take_sin_diff = False
+            loc_loss_src, l1_loss_src, var_loss_src, calib_loss_src = \
+                self.reg_loss_func(box_pred, var_preds[idx], box_reg_target, anchors, \
+                                   self.box_coder, take_sin_diff=take_sin_diff, weights=reg_weight)  # [N, M]
 
             loc_loss = loc_loss_src.sum() / batch_size
             l1_loss = l1_loss_src.sum() / batch_size

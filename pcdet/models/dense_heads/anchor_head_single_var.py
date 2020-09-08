@@ -116,7 +116,8 @@ class AnchorHeadSingleVAR(AnchorHeadSingle):
                                    var_preds.shape[-1])
 
         loc_loss_src, l1_loss_src, var_loss_src, calib_loss_src = \
-            self.reg_loss_func(box_preds, var_preds, box_reg_targets, anchors, self.box_coder, weights=reg_weights)  # [N, M]
+            self.reg_loss_func(box_preds, var_preds, box_reg_targets, anchors, \
+                               self.box_coder, take_sin_diff=True, weights=reg_weights)  # [N, M]
         loc_loss = loc_loss_src.sum() / batch_size
         l1_loss = l1_loss_src.sum() / batch_size
         var_loss = var_loss_src.sum() / batch_size
