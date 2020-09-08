@@ -7,12 +7,12 @@ import os
 from pcdet.datasets.cadc.cadc_dataset import CadcDataset
 
 
-REPO_DIR='/home/mm/my_work/WISEOpenLidarPerceptron'
+REPO_DIR='/root/pcdet'
 ROOT_PATH=os.path.join(REPO_DIR, 'data/cadc')
 CONFIG_PATH=os.path.join(REPO_DIR, 'tools/cfgs/dataset_configs/cadc_dataset.yaml')
 USE_PRETRAINED = False
 if USE_PRETRAINED == False:
-    RESULT_PATH= os.path.join(REPO_DIR,'output/cfgs/cadc_models/pointpillar/default/eval/epoch_50/val/default/result.pkl')
+    RESULT_PATH= os.path.join(REPO_DIR,'output/cadc_models/pointpillar/default/eval/epoch_5/val/default/result.pkl')
     OUTPUT_DIR=os.path.join(ROOT_PATH, 'bev_pred')
 else:
     RESULT_PATH= os.path.join(REPO_DIR,'output/cadc_models/pointpillar/default/eval/epoch_7728/val/default/result.pkl')
