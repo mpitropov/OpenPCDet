@@ -31,19 +31,21 @@ class KittiDatasetVAR(KittiDataset):
                 'location': np.zeros([num_samples, 3]),
                 'rotation_y': np.zeros(num_samples),
                 'score': np.zeros(num_samples),
+                'score_all': np.zeros([num_samples, 3]),
                 'boxes_lidar': np.zeros([num_samples, 7]),
-                'pred_labels': np.zeros(num_samples),
+                # 'pred_labels': np.zeros(num_samples),
                 'pred_vars': np.zeros([num_samples, 7]),
-                'anchor_scores': np.zeros(num_anchors),
-                'anchor_boxes': np.zeros([num_anchors, 7]),
-                'anchor_labels': np.zeros(num_anchors),
-                'anchor_vars': np.zeros([num_anchors, 7]),
-                'selected': np.zeros(num_samples)
+                # 'anchor_scores': np.zeros(num_anchors),
+                # 'anchor_boxes': np.zeros([num_anchors, 7]),
+                # 'anchor_labels': np.zeros(num_anchors),
+                # 'anchor_vars': np.zeros([num_anchors, 7]),
+                # 'selected': np.zeros(num_samples)
             }
             return ret_dict
 
         def generate_single_sample_dict(batch_index, box_dict):
             pred_scores = box_dict['pred_scores'].cpu().numpy()
+            pred_scores_all = box_dict['pred_scores_all'].cpu().numpy()
             pred_boxes = box_dict['pred_boxes'].cpu().numpy()
             pred_labels = box_dict['pred_labels'].cpu().numpy()
             pred_vars = box_dict['pred_vars'].cpu().numpy()
@@ -71,14 +73,15 @@ class KittiDatasetVAR(KittiDataset):
             pred_dict['location'] = pred_boxes_camera[:, 0:3]
             pred_dict['rotation_y'] = pred_boxes_camera[:, 6]
             pred_dict['score'] = pred_scores
+            pred_dict['score_all'] = pred_scores_all
             pred_dict['boxes_lidar'] = pred_boxes[:,:7]
-            pred_dict['pred_labels'] = pred_labels
+            # pred_dict['pred_labels'] = pred_labels
             pred_dict['pred_vars'] = pred_vars[:,:7]
-            pred_dict['anchor_scores'] = anchor_scores
-            pred_dict['anchor_boxes'] = anchor_boxes[:,:7]
-            pred_dict['anchor_labels'] = anchor_labels
-            pred_dict['anchor_vars'] = anchor_vars[:,:7]
-            pred_dict['selected'] = selected
+            # pred_dict['anchor_scores'] = anchor_scores
+            # pred_dict['anchor_boxes'] = anchor_boxes[:,:7]
+            # pred_dict['anchor_labels'] = anchor_labels
+            # pred_dict['anchor_vars'] = anchor_vars[:,:7]
+            # pred_dict['selected'] = selected
 
             return pred_dict
 

@@ -121,6 +121,7 @@ MODEL:
             BOX_CODER: ResidualCoder
 
         LOSS_CONFIG:
+            CLF_LOSS_TYPE: SoftmaxFocalLossV1
             REG_LOSS_TYPE: VarRegLoss
             LOSS_WEIGHTS: {
                 'cls_weight': 1.0,

@@ -71,6 +71,100 @@ class SigmoidFocalClassificationLoss(nn.Module):
 
         return loss * weights
 
+class SoftmaxFocalLossV1(nn.Module):
+    """
+    Softmax focal cross entropy loss.
+    Implementation from:
+    https://gluon-cv.mxnet.io/_modules/gluoncv/loss.html#FocalLoss
+    """
+
+    def __init__(self, gamma: float = 2.0, alpha: float = 0.25):
+        """
+        Args:
+            gamma: Weighting parameter to balance loss for hard and easy examples.
+            alpha: Weighting parameter to balance loss for positive and negative examples.
+        """
+        super(SoftmaxFocalLossV1, self).__init__()
+        self.alpha = alpha
+        self.gamma = gamma
+
+    def forward(self, input: torch.Tensor, target: torch.Tensor, weights: torch.Tensor):
+        """
+        Args:
+            input: (B, #anchors, #classes) float tensor.
+                Predicted logits for each class
+            target: (B, #anchors, #classes) float tensor.
+                One-hot encoded classification targets
+            weights: (B, #anchors) float tensor.
+                Anchor-wise weights.
+
+        Returns:
+            weighted_loss: (B, #anchors, #classes) float tensor after weighting.
+        """
+        # Compute softmax on classes, then remove the background class
+        pred_softmax = torch.softmax(input, dim=2)[...,:-1]
+        alpha_weight = target * self.alpha + (1 - target) * (1 - self.alpha)
+        pt = target * (1.0 - pred_softmax) + (1.0 - target) * pred_softmax
+        focal_weight = alpha_weight * torch.pow(pt, self.gamma)
+
+        bce_loss = F.binary_cross_entropy(pred_softmax, target, reduction='none')
+
+        loss = focal_weight * bce_loss
+
+        if weights.shape.__len__() == 2 or \
+                (weights.shape.__len__() == 1 and target.shape.__len__() == 2):
+            weights = weights.unsqueeze(-1)
+
+        assert weights.shape.__len__() == loss.shape.__len__()
+
+        return loss * weights
+
+class SoftmaxFocalLossV2(nn.Module):
+    """
+    Softmax focal cross entropy loss.
+    Implementation from function SoftmaxFocalLossKernel:
+    https://github.com/pytorch/pytorch/blob/master/modules/detectron/softmax_focal_loss_op.cu
+    """
+
+    def __init__(self, gamma: float = 2.0, alpha: float = 0.25):
+        """
+        Args:
+            gamma: Weighting parameter to balance loss for hard and easy examples.
+            alpha: Weighting parameter to balance loss for positive and negative examples.
+        """
+        super(SoftmaxFocalLossV2, self).__init__()
+        self.alpha = alpha
+        self.gamma = gamma
+
+    def forward(self, input: torch.Tensor, target: torch.Tensor, weights: torch.Tensor):
+        """
+        Args:
+            input: (B, #anchors, #classes) float tensor.
+                Predicted logits for each class
+            target: (B, #anchors, #classes) float tensor.
+                One-hot encoded classification targets
+            weights: (B, #anchors) float tensor.
+                Anchor-wise weights.
+
+        Returns:
+            weighted_loss: (B, #anchors, #classes) float tensor after weighting.
+        """
+        pred_softmax = torch.softmax(input, dim=2)
+        alpha_weight = pred_softmax.new_full(pred_softmax.shape, self.alpha)
+        alpha_weight[...,-1] = 1.0 - self.alpha
+        focal_weight = alpha_weight * torch.pow(1.0 - pred_softmax, self.gamma)
+
+        ce_loss = -target * torch.log(torch.clamp(pred_softmax, min=1e-10))
+
+        loss = focal_weight * ce_loss
+
+        if weights.shape.__len__() == 2 or \
+                (weights.shape.__len__() == 1 and target.shape.__len__() == 2):
+            weights = weights.unsqueeze(-1)
+
+        assert weights.shape.__len__() == loss.shape.__len__()
+
+        return loss * weights
 
 class WeightedSmoothL1Loss(nn.Module):
     """

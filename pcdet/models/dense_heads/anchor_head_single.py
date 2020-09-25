@@ -1,4 +1,5 @@
 import numpy as np
+import torch
 import torch.nn as nn
 
 from .anchor_head_template import AnchorHeadTemplate
@@ -13,9 +14,15 @@ class AnchorHeadSingle(AnchorHeadTemplate):
         )
 
         self.num_anchors_per_location = sum(self.num_anchors_per_location)
+        clf_loss_name = self.model_cfg.LOSS_CONFIG.get('CLF_LOSS_TYPE', 'SigmoidFocalClassificationLoss')
+        if clf_loss_name == 'SigmoidFocalClassificationLoss':
+            num_classes = self.num_class
+        elif clf_loss_name == 'SoftmaxFocalLossV1' or \
+            clf_loss_name == 'SoftmaxFocalLossV2':
+            num_classes = self.num_class + 1
 
         self.conv_cls = nn.Conv2d(
-            input_channels, self.num_anchors_per_location * self.num_class,
+            input_channels, self.num_anchors_per_location * num_classes,
             kernel_size=1
         )
         self.conv_box = nn.Conv2d(
@@ -34,8 +41,17 @@ class AnchorHeadSingle(AnchorHeadTemplate):
         self.init_weights()
 
     def init_weights(self):
-        pi = 0.01
-        nn.init.constant_(self.conv_cls.bias, -np.log((1 - pi) / pi))
+        clf_loss_name = self.model_cfg.LOSS_CONFIG.get('CLF_LOSS_TYPE', 'SigmoidFocalClassificationLoss')
+        if clf_loss_name == 'SigmoidFocalClassificationLoss':
+            pi = 0.01
+            nn.init.constant_(self.conv_cls.bias, -np.log((1 - pi) / pi))
+        elif clf_loss_name == 'SoftmaxFocalLossV1' or \
+            clf_loss_name == 'SoftmaxFocalLossV2':
+            pi = (1-0.99) / self.num_class # p_fg
+            p_bg = 1-pi*self.num_class
+            bias = np.full((self.num_anchors_per_location, self.num_class + 1), 0, dtype=np.float32)
+            bias[:,-1] = np.log(p_bg/pi)
+            self.conv_cls.bias = torch.nn.Parameter(torch.from_numpy(bias.flatten()))
         nn.init.normal_(self.conv_box.weight, mean=0, std=0.001)
 
     def forward(self, data_dict):
