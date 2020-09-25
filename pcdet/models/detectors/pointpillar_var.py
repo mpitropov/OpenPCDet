@@ -44,15 +44,31 @@ class PointPillarVAR(PointPillar):
                 cls_preds = batch_dict['batch_cls_preds'][batch_mask]
 
                 src_cls_preds = cls_preds
-                assert cls_preds.shape[1] in [1, self.num_class]
+                clf_loss_name = self.model_cfg.DENSE_HEAD.LOSS_CONFIG.get('CLF_LOSS_TYPE', 'SigmoidFocalClassificationLoss')
+                if clf_loss_name == 'SigmoidFocalClassificationLoss':
+                    num_classes = self.num_class
+                elif clf_loss_name == 'SoftmaxFocalLossV1' or \
+                    clf_loss_name == 'SoftmaxFocalLossV2':
+                    num_classes = self.num_class + 1
+                assert cls_preds.shape[1] in [1, num_classes]
 
                 if not batch_dict['cls_preds_normalized']:
-                    cls_preds = torch.sigmoid(cls_preds)
+                    if clf_loss_name == 'SigmoidFocalClassificationLoss':
+                        cls_preds = torch.sigmoid(cls_preds)
+                    elif clf_loss_name == 'SoftmaxFocalLossV1' or \
+                        clf_loss_name == 'SoftmaxFocalLossV2':
+                        # Perform softmax and remove background class
+                        cls_preds = torch.softmax(cls_preds, dim=-1)[...,:-1]
             else:
                 cls_preds = [x[batch_mask] for x in batch_dict['batch_cls_preds']]
                 src_cls_preds = cls_preds
                 if not batch_dict['cls_preds_normalized']:
-                    cls_preds = [torch.sigmoid(x) for x in cls_preds]
+                    if clf_loss_name == 'SigmoidFocalClassificationLoss':
+                        cls_preds = [torch.sigmoid(x) for x in cls_preds]
+                    elif clf_loss_name == 'SoftmaxFocalLossV1' or \
+                        clf_loss_name == 'SoftmaxFocalLossV2':
+                        # TODO: Implement for multi head
+                        raise NotImplementedError
 
             var_preds = batch_dict['batch_var_preds'][batch_mask]
             var_preds = torch.exp(var_preds)
@@ -123,6 +139,7 @@ class PointPillarVAR(PointPillar):
             record_dict = {
                 'pred_boxes': final_boxes[final_selected],
                 'pred_scores': final_scores[final_selected],
+                'pred_scores_all': src_cls_preds[final_selected],
                 'pred_labels': final_labels[final_selected],
                 'pred_vars': final_vars[final_selected],
                 'anchor_boxes': final_boxes,
