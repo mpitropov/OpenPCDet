@@ -138,11 +138,15 @@ class CadcDataset(DatasetTemplate):
 
         # Filter out objects
         for idx, obj in enumerate(obj_list_temp):
-            # filter by label
+            # Filter by label
             if (obj['label'] not in ['Car', 'Pedestrian', 'Truck']):
                 continue
-            if (obj['label'] == 'Truck' and obj['attributes']['truck_type'] != 'Pickup_Truck'):
-                continue
+            # Set Pickup_Truck label as top label
+            if obj['label'] == 'Truck':
+                if obj['attributes']['truck_type'] == 'Pickup_Truck':
+                    obj['label'] = 'Pickup_Truck'
+                else:
+                    continue
             # filter by point_count
             if obj['points_count'] < point_count_threshold[obj['label']]:
                 ratio_to_criteria = obj['points_count'] / point_count_threshold[obj['label']]
@@ -284,14 +288,8 @@ class CadcDataset(DatasetTemplate):
         with open(db_info_save_path, 'wb') as f:
             pickle.dump(all_db_infos, f)
 
-    
-    # instance method wrapper, in order to use the instance method get_threshold()
-    def generate_prediction_dicts(self, batch_dict, pred_dicts, class_names, output_path=None):
-        filter_thresholds = self.get_threshold()
-        return self._generate_prediction_dicts(batch_dict, pred_dicts, class_names, filter_thresholds, output_path=None)
-
     @staticmethod
-    def _generate_prediction_dicts(batch_dict, pred_dicts, class_names, filter_thresholds, output_path=None):
+    def generate_prediction_dicts(batch_dict, pred_dicts, class_names, output_path=None):
         """
         Args:
             batch_dict:
@@ -329,7 +327,7 @@ class CadcDataset(DatasetTemplate):
             index = np.array(index)
             return index
 
-        def generate_single_sample_dict(batch_index, box_dict, filter_thresholds):
+        def generate_single_sample_dict(batch_index, box_dict):
             pred_scores = box_dict['pred_scores'].cpu().numpy()
             pred_boxes = box_dict['pred_boxes'].cpu().numpy()
             pred_labels = box_dict['pred_labels'].cpu().numpy()
@@ -337,12 +335,6 @@ class CadcDataset(DatasetTemplate):
             calib = batch_dict['calib'][batch_index]
             image_shape = batch_dict['image_shape'][batch_index]
             pred_boxes_camera = box_utils.boxes3d_lidar_to_kitti_camera(pred_boxes, calib)
-
-            # filter by score and distance
-            _, distance_threshold, score_threshold = filter_thresholds
-            index = filter_criteria(pred_scores, pred_boxes_camera[:,0:3], score_threshold, distance_threshold)
-            pred_scores, pred_boxes, pred_labels, pred_boxes_camera = \
-            pred_scores[index], pred_boxes[index], pred_labels[index], pred_boxes_camera[index]
 
             pred_dict = get_template_prediction(pred_scores.shape[0])
             if pred_scores.shape[0] == 0:
@@ -368,7 +360,7 @@ class CadcDataset(DatasetTemplate):
             # frame_id = batch_dict['frame_id'][index]
             frame_id = batch_dict['sample_idx'][index]
 
-            single_pred_dict = generate_single_sample_dict(index, box_dict, filter_thresholds)
+            single_pred_dict = generate_single_sample_dict(index, box_dict)
             single_pred_dict['frame_id'] = frame_id
             annos.append(single_pred_dict)
 
@@ -532,20 +524,7 @@ if __name__ == '__main__':
         ROOT_DIR = (Path(__file__).resolve().parent / '../../../').resolve()
         create_cadc_infos(
             dataset_cfg=dataset_cfg,
-            class_names=['Car', 'Pedestrian', 'Truck'],
+            class_names=['Car', 'Pedestrian', 'Pickup_Truck'],
             data_path=ROOT_DIR / 'data' / 'cadc',
             save_path=ROOT_DIR / 'data' / 'cadc'
         )
-
-    # if sys.argv.__len__() > 1 and sys.argv[1] == 'create_cadc_infos':
-    #     create_cadc_infos(
-    #         data_path=cfg.ROOT_DIR / 'data' / 'cadcd',
-    #         save_path=cfg.ROOT_DIR / 'data' / 'cadcd'
-    #     )
-    # else:
-    #     A = CadcDataset(root_path='data/cadcd', class_names=cfg.CLASS_NAMES, split='train', training=True)
-    #     import pdb
-    #     pdb.set_trace()
-    #     ans = A[1]
-
-

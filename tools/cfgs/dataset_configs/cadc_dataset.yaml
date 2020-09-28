@@ -22,11 +22,11 @@ DATA_AUGMENTOR:
       DB_INFO_PATH:
           - cadc_dbinfos_train.pkl
       PREPARE: {
-         filter_by_min_points: ['Car:50', 'Pedestrian:20', 'Truck:50'],
+         filter_by_min_points: ['Car:5', 'Pedestrian:5', 'Pickup_Truck:5'],
          filter_by_difficulty: [-1],
       }
 
-      SAMPLE_GROUPS: ['Car:20','Pedestrian:15', 'Truck:20']
+      SAMPLE_GROUPS: ['Car:15','Pedestrian:15', 'Pickup_Truck:15']
       NUM_POINT_FEATURES: 4
       DATABASE_WITH_FAKELIDAR: False 
       REMOVE_EXTRA_WIDTH: [0.0, 0.0, 0.0]
@@ -41,8 +41,9 @@ DATA_AUGMENTOR:
     - NAME: random_world_scaling
       WORLD_SCALE_RANGE: [0.95, 1.05]
 
+# Used to filter the ground truth annotations
 FILTER_CRITERIA: {
-     filter_by_min_points: ['Car:50', 'Pedestrian:20', 'Truck:50'],
+     filter_by_min_points: ['Car:5', 'Pedestrian:5', 'Pickup_Truck:5'],
      distance: 60,
      score: 0.2
 }
