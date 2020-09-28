@@ -1,4 +1,4 @@
-CLASS_NAMES: ['Car', 'Pedestrian', 'Truck']
+CLASS_NAMES: ['Car', 'Pedestrian', 'Pickup_Truck']
 
 DATA_CONFIG: 
     _BASE_CONFIG_: cfgs/dataset_configs/cadc_dataset.yaml
@@ -74,7 +74,7 @@ MODEL:
                 'unmatched_threshold': 0.35
             },
             {
-                'class_name': 'Truck',
+                'class_name': 'Pickup_Truck',
                 'anchor_sizes': [[5.89, 2.03, 1.92]],
                 'anchor_rotations': [0, 1.57],
                 'anchor_bottom_heights': [-0.6],
