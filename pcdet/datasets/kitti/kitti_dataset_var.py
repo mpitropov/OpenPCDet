@@ -20,7 +20,7 @@ class KittiDatasetVAR(KittiDataset):
         Returns:
 
         """
-        def get_template_prediction(num_samples, num_anchors):
+        def get_template_prediction(num_samples, num_anchors, num_classes):
             ret_dict = {
                 'name': np.zeros(num_samples),
                 'truncated': np.zeros(num_samples),
@@ -31,7 +31,7 @@ class KittiDatasetVAR(KittiDataset):
                 'location': np.zeros([num_samples, 3]),
                 'rotation_y': np.zeros(num_samples),
                 'score': np.zeros(num_samples),
-                'score_all': np.zeros([num_samples, 3]),
+                'score_all': np.zeros([num_samples, num_classes]),
                 'boxes_lidar': np.zeros([num_samples, 7]),
                 # 'pred_labels': np.zeros(num_samples),
                 'pred_vars': np.zeros([num_samples, 7]),
@@ -55,7 +55,7 @@ class KittiDatasetVAR(KittiDataset):
             anchor_vars = box_dict['anchor_vars'].cpu().numpy()
             selected = box_dict['selected'].cpu().numpy()
 
-            pred_dict = get_template_prediction(pred_scores.shape[0], anchor_scores.shape[0])
+            pred_dict = get_template_prediction(pred_scores.shape[0], anchor_scores.shape[0], pred_scores_all.shape[1])
             if pred_scores.shape[0] == 0:
                 return pred_dict
 
