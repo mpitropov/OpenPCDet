@@ -41,7 +41,8 @@ class DataBaseSampler(object):
 
     def __getstate__(self):
         d = dict(self.__dict__)
-        del d['logger']
+        if 'logger' in d:
+            del d['logger']
         return d
 
     def __setstate__(self, d):
