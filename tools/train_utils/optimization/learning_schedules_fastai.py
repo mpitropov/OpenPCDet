@@ -77,6 +77,19 @@ class OneCycle(LRSchedulerStep):
         super().__init__(fai_optimizer, total_step, lr_phases, mom_phases)
 
 
+class CosineAnnealing(LRSchedulerStep):
+    def __init__(self, fai_optimizer, total_step, lr_max, moms):
+        self.lr_max = lr_max
+        self.moms = moms
+        a1 = 0
+        a2 = total_step - a1
+        low_lr = self.lr_max
+        lr_phases = [(0, partial(annealing_cos, self.lr_max, low_lr / 1e4))]
+        mom_phases = [((0, partial(annealing_cos, *self.moms[::-1])))]
+        fai_optimizer.lr, fai_optimizer.mom = low_lr, self.moms[0]
+        super().__init__(fai_optimizer, total_step, lr_phases, mom_phases)
+
+
 class CosineWarmupLR(lr_sched._LRScheduler):
     def __init__(self, optimizer, T_max, eta_min=0, last_epoch=-1):
         self.T_max = T_max

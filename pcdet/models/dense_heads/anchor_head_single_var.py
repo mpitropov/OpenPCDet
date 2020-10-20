@@ -1,6 +1,7 @@
 import numpy as np
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 
 from ...utils import box_coder_utils, common_utils, loss_utils
 from .anchor_head_single import AnchorHeadSingle
@@ -45,6 +46,10 @@ class AnchorHeadSingleVAR(AnchorHeadSingle):
 
     def forward(self, data_dict):
         spatial_features_2d = data_dict['spatial_features_2d']
+        features_mean = torch.mean(spatial_features_2d, dim=[2, 3])
+        features_max = torch.max(torch.max(spatial_features_2d, dim=3)[0], dim=2)[0]
+        features_std = torch.std(spatial_features_2d, dim=[2, 3])
+        data_dict['batch_features'] = torch.cat([features_mean, features_max, features_std], dim=1)
 
         cls_preds = self.conv_cls(spatial_features_2d)
         box_preds = self.conv_box(spatial_features_2d)
