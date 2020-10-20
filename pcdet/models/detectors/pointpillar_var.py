@@ -137,6 +137,7 @@ class PointPillarVAR(PointPillar):
 
 
             record_dict = {
+                'feature': batch_dict['batch_features'][index],
                 'pred_boxes': final_boxes[final_selected],
                 'pred_scores': final_scores[final_selected],
                 'pred_scores_all': src_cls_preds[final_selected],

@@ -34,6 +34,7 @@ class NuScenesDatasetVAR(NuScenesDataset):
             return ret_dict
 
         def generate_single_sample_dict(box_dict):
+            feature = box_dict['feature'].cpu().numpy()
             pred_scores = box_dict['pred_scores'].cpu().numpy()
             pred_scores_all = box_dict['pred_scores_all'].cpu().numpy()
             pred_boxes = box_dict['pred_boxes'].cpu().numpy()
@@ -49,6 +50,7 @@ class NuScenesDatasetVAR(NuScenesDataset):
             if pred_scores.shape[0] == 0:
                 return pred_dict
 
+            pred_dict['feature'] = feature
             pred_dict['name'] = np.array(class_names)[pred_labels - 1]
             pred_dict['score'] = pred_scores
             pred_dict['score_all'] = pred_scores_all
@@ -62,7 +64,7 @@ class NuScenesDatasetVAR(NuScenesDataset):
             # pred_dict['selected'] = selected
 
             return pred_dict
-
+        
         annos = []
         for index, box_dict in enumerate(pred_dicts):
             single_pred_dict = generate_single_sample_dict(box_dict)
