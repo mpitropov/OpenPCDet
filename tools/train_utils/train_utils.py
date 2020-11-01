@@ -22,6 +22,10 @@ def train_one_epoch(model, optimizer, train_loader, model_func, lr_scheduler, ac
             batch = next(dataloader_iter)
             print('new iters')
 
+        if batch['batch_size'] % 3 != 0:
+            print("batch has not indivisble by 3. Skip this batch size", batch['batch_size'])
+            break
+
         lr_scheduler.step(accumulated_iter)
 
         try:

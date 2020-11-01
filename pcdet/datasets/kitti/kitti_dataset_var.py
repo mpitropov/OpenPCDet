@@ -21,7 +21,7 @@ class KittiDatasetVAR(KittiDataset):
         Returns:
 
         """
-        def get_template_prediction(num_samples, num_anchors, num_classes):
+        def get_template_prediction(num_samples, num_anchors):
             ret_dict = {
                 'name': np.zeros(num_samples),
                 'truncated': np.zeros(num_samples),
@@ -32,7 +32,7 @@ class KittiDatasetVAR(KittiDataset):
                 'location': np.zeros([num_samples, 3]),
                 'rotation_y': np.zeros(num_samples),
                 'score': np.zeros(num_samples),
-                'score_all': np.zeros([num_samples, num_classes]),
+                'score_all': np.zeros([num_samples, len(class_names)+1]),
                 'boxes_lidar': np.zeros([num_samples, 7]),
                 'pred_labels': np.zeros(num_samples),
                 'target_labels': np.zeros(num_samples),
@@ -52,13 +52,13 @@ class KittiDatasetVAR(KittiDataset):
             pred_labels = box_dict['pred_labels'].cpu().numpy()
             target_labels = box_dict['target_labels'].cpu().numpy()
             pred_vars = box_dict['pred_vars'].cpu().numpy()
-            anchor_scores = box_dict['anchor_scores'].cpu().numpy()
-            anchor_boxes = box_dict['anchor_boxes'].cpu().numpy()
-            anchor_labels = box_dict['anchor_labels'].cpu().numpy()
-            anchor_vars = box_dict['anchor_vars'].cpu().numpy()
-            selected = box_dict['selected'].cpu().numpy()
+            # anchor_scores = box_dict['anchor_scores'].cpu().numpy()
+            # anchor_boxes = box_dict['anchor_boxes'].cpu().numpy()
+            # anchor_labels = box_dict['anchor_labels'].cpu().numpy()
+            # anchor_vars = box_dict['anchor_vars'].cpu().numpy()
+            # selected = box_dict['selected'].cpu().numpy()
 
-            pred_dict = get_template_prediction(pred_scores.shape[0], anchor_scores.shape[0], pred_scores_all.shape[1])
+            pred_dict = get_template_prediction(pred_scores.shape[0], 0)
             if pred_scores.shape[0] == 0:
                 return pred_dict
 

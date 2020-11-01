@@ -6,6 +6,7 @@ from .point_head_simple import PointHeadSimple
 from .point_intra_part_head import PointIntraPartOffsetHead
 from .anchor_head_single_var import AnchorHeadSingleVAR
 from .anchor_head_multi_var import AnchorHeadMultiVAR
+from .anchor_head_mimo import AnchorHeadMIMO
 
 __all__ = {
     'AnchorHeadTemplate': AnchorHeadTemplate,
@@ -15,5 +16,6 @@ __all__ = {
     'PointHeadBox': PointHeadBox,
     'AnchorHeadMulti': AnchorHeadMulti,
     'AnchorHeadMultiVAR': AnchorHeadMultiVAR,
-    'AnchorHeadSingleVAR': AnchorHeadSingleVAR
+    'AnchorHeadSingleVAR': AnchorHeadSingleVAR,
+    'AnchorHeadMIMO': AnchorHeadMIMO
 }
