@@ -468,6 +468,29 @@ class VarRegLoss(nn.Module):
             print(" diff_decoded has inf")
             exit()
 
+        zero_tensor = torch.zeros(var_preds.size()).cuda()
+        var_preds = torch.where(torch.isnan(var_preds), zero_tensor, var_preds)
+        diff_decoded = torch.where(torch.isnan(diff_decoded), zero_tensor, diff_decoded)
+
+        if torch.isnan(diff).any():
+            print(" diff has nan")
+            exit()
+        if torch.isinf(diff).any():
+            print(" diff has inf")
+            exit()
+        if torch.isnan(var_preds).any():
+            print(" var_preds has nan")
+            exit()
+        if torch.isinf(var_preds).any():
+            print(" var_preds has inf")
+            exit()
+        if torch.isnan(diff_decoded).any():
+            print(" diff_decoded has nan")
+            exit()
+        if torch.isinf(diff_decoded).any():
+            print(" diff_decoded has inf")
+            exit()
+
         loss_l1 = self.smooth_l1_loss(diff, self.beta)
         loss_var_linear = 0.5*(torch.exp(-var_preds[..., :6])*torch.pow(diff[..., :6], 2)) + \
                     0.5*var_preds[..., :6]
@@ -477,6 +500,31 @@ class VarRegLoss(nn.Module):
                             torch.exp(-var_preds[..., 6]) * var_angle_diff + \
                             F.elu(var_preds[..., 6] - s0)
         loss_var = torch.cat([loss_var_linear, loss_var_angle.unsqueeze(-1)], dim=-1)
+
+        loss_l1 = torch.where(torch.isnan(loss_l1), zero_tensor, loss_l1)
+        loss_var = torch.where(torch.isnan(loss_var), zero_tensor, loss_var)
+        loss_calib = torch.where(torch.isnan(loss_calib), zero_tensor, loss_calib)
+
+        if torch.isnan(loss_l1).any():
+            print(" loss_l1 has nan")
+            exit()
+        if torch.isinf(loss_l1).any():
+            print(" loss_l1 has inf")
+            exit()
+            
+        if torch.isnan(loss_var).any():
+            print(" loss_var has nan")
+            exit()
+        if torch.isinf(loss_var).any():
+            print(" loss_var has inf")
+            exit()
+
+        if torch.isnan(loss_calib).any():
+            print(" loss_calib has nan")
+            exit()
+        if torch.isinf(loss_calib).any():
+            print(" loss_calib has inf")
+            exit()
 
         loss_l1 = torch.where(torch.isnan(loss_l1), zero_tensor, loss_l1)
         loss_var = torch.where(torch.isnan(loss_var), zero_tensor, loss_var)
