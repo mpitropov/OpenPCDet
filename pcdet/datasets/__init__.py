@@ -9,6 +9,7 @@ from .kitti.kitti_dataset import KittiDataset
 from .kitti.kitti_dataset_var import KittiDatasetVAR
 from .nuscenes.nuscenes_dataset import NuScenesDataset
 from .nuscenes.nuscenes_dataset_var import NuScenesDatasetVAR
+from .waymo.waymo_dataset import WaymoDataset
 from .cadc.cadc_dataset import CadcDataset
 from .cadc.cadc_dataset_var import CadcDatasetVAR
 
@@ -18,6 +19,7 @@ __all__ = {
     'KittiDatasetVAR': KittiDatasetVAR,
     'NuScenesDataset': NuScenesDataset,
     'NuScenesDatasetVAR': NuScenesDatasetVAR,
+    'WaymoDataset': WaymoDataset,
     'CadcDataset': CadcDataset,
     'CadcDatasetVAR': CadcDatasetVAR
 }
