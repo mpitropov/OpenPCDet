@@ -1,6 +1,7 @@
-CLASS_NAMES: ['Car', 'Pedestrian', 'Cyclist']
-DATA_CONFIG: 
-    _BASE_CONFIG_: cfgs/dataset_configs/kitti_dataset.yaml
+CLASS_NAMES: ['Vehicle', 'Pedestrian', 'Cyclist']
+
+DATA_CONFIG:
+    _BASE_CONFIG_: cfgs/dataset_configs/waymo_dataset.yaml
 
 
 MODEL:
@@ -26,32 +27,30 @@ MODEL:
         NUM_UPSAMPLE_FILTERS: [256, 256]
 
     DENSE_HEAD:
-        NAME: AnchorHeadMulti
+        NAME: AnchorHeadSingle
         CLASS_AGNOSTIC: False
 
         USE_DIRECTION_CLASSIFIER: True
         DIR_OFFSET: 0.78539
         DIR_LIMIT_OFFSET: 0.0
         NUM_DIR_BINS: 2
-        
-        USE_MULTIHEAD: True
-        SEPARATE_MULTIHEAD: True
+
         ANCHOR_GENERATOR_CONFIG: [
             {
-                'class_name': 'Car',
-                'anchor_sizes': [[3.9, 1.6, 1.56]],
+                'class_name': 'Vehicle',
+                'anchor_sizes': [[4.7, 2.1, 1.7]],
                 'anchor_rotations': [0, 1.57],
-                'anchor_bottom_heights': [-1.6],
+                'anchor_bottom_heights': [0],
                 'align_center': False,
                 'feature_map_stride': 8,
-                'matched_threshold': 0.6,
-                'unmatched_threshold': 0.45
+                'matched_threshold': 0.55,
+                'unmatched_threshold': 0.4
             },
             {
                 'class_name': 'Pedestrian',
-                'anchor_sizes': [[0.8, 0.6, 1.73]],
+                'anchor_sizes': [[0.91, 0.86, 1.73]],
                 'anchor_rotations': [0, 1.57],
-                'anchor_bottom_heights': [-1.6],
+                'anchor_bottom_heights': [0],
                 'align_center': False,
                 'feature_map_stride': 8,
                 'matched_threshold': 0.5,
@@ -59,9 +58,9 @@ MODEL:
             },
             {
                 'class_name': 'Cyclist',
-                'anchor_sizes': [[1.76, 0.6, 1.73]],
+                'anchor_sizes': [[1.78, 0.84, 1.78]],
                 'anchor_rotations': [0, 1.57],
-                'anchor_bottom_heights': [-1.6],
+                'anchor_bottom_heights': [0],
                 'align_center': False,
                 'feature_map_stride': 8,
                 'matched_threshold': 0.5,
@@ -69,27 +68,13 @@ MODEL:
             }
         ]
 
-        SHARED_CONV_NUM_FILTER: 64
-
-        RPN_HEAD_CFGS: [
-            {
-                'HEAD_CLS_NAME': ['Car'],
-            },
-            {
-                'HEAD_CLS_NAME': ['Pedestrian'],
-            },
-            {
-                'HEAD_CLS_NAME': ['Cyclist'],
-            }
-        ]
-
         TARGET_ASSIGNER_CONFIG:
-           NAME: AxisAlignedTargetAssigner
-           POS_FRACTION: -1.0
-           SAMPLE_SIZE: 512
-           NORM_BY_NUM_EXAMPLES: False
-           MATCH_HEIGHT: False
-           BOX_CODER: ResidualCoder
+            NAME: AxisAlignedTargetAssigner
+            POS_FRACTION: -1.0
+            SAMPLE_SIZE: 512
+            NORM_BY_NUM_EXAMPLES: False
+            MATCH_HEIGHT: False
+            BOX_CODER: ResidualCoder
 
         LOSS_CONFIG:
             LOSS_WEIGHTS: {
@@ -101,23 +86,22 @@ MODEL:
 
     POST_PROCESSING:
         RECALL_THRESH_LIST: [0.3, 0.5, 0.7]
-        MULTI_CLASSES_NMS: True
         SCORE_THRESH: 0.1
         OUTPUT_RAW_SCORE: False
 
-        EVAL_METRIC: kitti
+        EVAL_METRIC: waymo
 
         NMS_CONFIG:
-            MULTI_CLASSES_NMS: True
+            MULTI_CLASSES_NMS: False
             NMS_TYPE: nms_gpu
-            NMS_THRESH: 0.1
+            NMS_THRESH: 0.01
             NMS_PRE_MAXSIZE: 4096
             NMS_POST_MAXSIZE: 500
 
 
 OPTIMIZATION:
     BATCH_SIZE_PER_GPU: 4
-    NUM_EPOCHS: 80
+    NUM_EPOCHS: 30
 
     OPTIMIZER: adam_onecycle
     LR: 0.003
