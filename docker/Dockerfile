@@ -6,7 +6,7 @@ ARG CMAKE_VERSION=3.16
 ARG CMAKE_BUILD=5
 ARG PYTHON_VERSION=3.6
 ARG TORCH_VERSION=1.7
-ARG TORCHVISION_VERSION=0.4
+ARG TORCHVISION_VERSION=0.8.1
 
 RUN APT_INSTALL="apt-get install -y --no-install-recommends" && \
     PIP_INSTALL="python -m pip --no-cache-dir install --upgrade" && \
