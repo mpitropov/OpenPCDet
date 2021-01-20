@@ -42,17 +42,17 @@ class AnchorHeadMIMO(nn.Module):
             exit()
 
         # Run forward pass of each head
-        ret_data_dict_a = self.head_a.forward({
+        ret_data_dict_a = self.head_a({
             'spatial_features_2d': spatial_features_2d,
             'gt_boxes': gt_boxes.index_select(0, head_a_gt_indices),
             'batch_size': batch_size
         })
-        ret_data_dict_b = self.head_b.forward({
+        ret_data_dict_b = self.head_b({
             'spatial_features_2d': spatial_features_2d,
             'gt_boxes': gt_boxes.index_select(0, head_b_gt_indices),
             'batch_size': batch_size
         })
-        ret_data_dict_c = self.head_c.forward({
+        ret_data_dict_c = self.head_c({
             'spatial_features_2d': spatial_features_2d,
             'gt_boxes': gt_boxes.index_select(0, head_c_gt_indices),
             'batch_size': batch_size

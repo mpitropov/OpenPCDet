@@ -5,6 +5,7 @@ from .pointpillar import PointPillar
 from .pv_rcnn import PVRCNN
 from .second_net import SECONDNet
 from .pointpillar_var import PointPillarVAR
+from .pointpillar_mimo_var import PointPillarMIMOVAR
 
 __all__ = {
     'Detector3DTemplate': Detector3DTemplate,
@@ -13,7 +14,8 @@ __all__ = {
     'PVRCNN': PVRCNN,
     'PointPillar': PointPillar,
     'PointRCNN': PointRCNN,
-    'PointPillarVAR': PointPillarVAR
+    'PointPillarVAR': PointPillarVAR,
+    'PointPillarMIMOVAR': PointPillarMIMOVAR
 }
 
 

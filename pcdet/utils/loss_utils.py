@@ -393,8 +393,9 @@ class VarRegLoss(nn.Module):
             print(" first gt_targets has inf")
             exit()
 
-        # gt_targets = torch.where(torch.isnan(gt_targets), reg_preds, gt_targets)  # ignore nan targets
-        reg_preds = torch.where(torch.isnan(reg_preds), gt_targets, reg_preds)  # ignore nan targets
+        gt_targets = torch.where(torch.isnan(gt_targets), reg_preds, gt_targets)  # ignore nan targets
+        # reg_preds = torch.where(torch.isnan(reg_preds), gt_targets, reg_preds)  # ignore nan targets
+        # reg_preds = torch.where(torch.isinf(reg_preds), gt_targets, reg_preds) 
 
         if torch.isnan(reg_preds).any():
             print(" reg_preds has nan")
@@ -529,6 +530,10 @@ class VarRegLoss(nn.Module):
         loss_l1 = torch.where(torch.isnan(loss_l1), zero_tensor, loss_l1)
         loss_var = torch.where(torch.isnan(loss_var), zero_tensor, loss_var)
         loss_calib = torch.where(torch.isnan(loss_calib), zero_tensor, loss_calib)
+
+        loss_l1 = torch.where(torch.isinf(loss_l1), zero_tensor, loss_l1)
+        loss_var = torch.where(torch.isinf(loss_var), zero_tensor, loss_var)
+        loss_calib = torch.where(torch.isinf(loss_calib), zero_tensor, loss_calib)
 
         if torch.isnan(loss_l1).any():
             print(" loss_l1 has nan")

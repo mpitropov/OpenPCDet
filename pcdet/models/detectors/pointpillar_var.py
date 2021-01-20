@@ -27,8 +27,6 @@ class PointPillarVAR(PointPillar):
         """
         post_process_cfg = self.model_cfg.POST_PROCESSING
         batch_size = batch_dict['batch_size']
-        # OVERRIDE FOR MIMO testing
-        batch_size = 1
         recall_dict = {}
         pred_dicts = []
         for index in range(batch_size):

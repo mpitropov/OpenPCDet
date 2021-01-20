@@ -49,7 +49,7 @@ DATA_CONFIG:
               WORLD_SCALE_RANGE: [0.95, 1.05]
 
 MODEL:
-    NAME: PointPillarVAR
+    NAME: PointPillarVARMIMO
 
     VFE:
         NAME: PillarVFE
@@ -64,11 +64,11 @@ MODEL:
 
     BACKBONE_2D:
         NAME: BaseBEVBackboneMIMO
-        LAYER_NUMS: [3, 5, 5, 5] # [3, 5, 5]
-        LAYER_STRIDES: [2, 2, 2, 2] # [2, 2, 2]
-        NUM_FILTERS: [192, 256, 256, 256] # [64, 128, 256]
-        UPSAMPLE_STRIDES: [1, 2, 4, 8] # [1, 2, 4]
-        NUM_UPSAMPLE_FILTERS: [128, 128, 128, 128] # [128, 128, 128]
+        LAYER_NUMS: [5, 7, 7] # [3, 5, 5]
+        LAYER_STRIDES: [2, 2, 2] # [2, 2, 2]
+        NUM_FILTERS: [192, 256, 256] # [192, 384, 768] # [64, 128, 256]
+        UPSAMPLE_STRIDES: [1, 2, 4] # [1, 2, 4]
+        NUM_UPSAMPLE_FILTERS: [128, 128, 128] # [384, 384, 384] # [128, 128, 128]
 
     DENSE_HEAD:
         NAME: AnchorHeadMIMO
@@ -121,7 +121,7 @@ MODEL:
             BOX_CODER: ResidualCoder
 
         LOSS_CONFIG:
-            CLF_LOSS_TYPE: SigmoidFocalClassificationLoss # SoftmaxFocalLossV2
+            CLF_LOSS_TYPE: SoftmaxFocalLossV1 # SigmoidFocalClassificationLoss # SoftmaxFocalLossV2
             REG_LOSS_TYPE: VarRegLoss
             LOSS_WEIGHTS: {
                 'cls_weight': 1.0,
@@ -152,9 +152,9 @@ OPTIMIZATION:
     BATCH_SIZE_PER_GPU: 4
     NUM_EPOCHS: 80
 
-    OPTIMIZER: adam_onecycle # adam_onecycle # adam_annealing
+    OPTIMIZER: adam_annealing # adam_onecycle # adam_annealing
     LR: 0.003 # 0.003
-    WEIGHT_DECAY: 0.01
+    WEIGHT_DECAY: 0.0 # 0.01
     MOMENTUM: 0.9
 
     MOMS: [0.95, 0.85]
