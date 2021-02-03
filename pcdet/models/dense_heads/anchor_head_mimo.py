@@ -11,9 +11,9 @@ class AnchorHeadMIMO(nn.Module):
         self.predict_boxes_when_training = predict_boxes_when_training
         self.num_heads = 3
 
-        # Create 3 detection heads
+        # Create detection heads
         detection_heads = []
-        for i in range(3):
+        for i in range(self.num_heads):
             detection_heads.append(
                 AnchorHeadSingleVAR(model_cfg, input_channels, num_class,
                                     class_names, grid_size, point_cloud_range,
@@ -26,7 +26,7 @@ class AnchorHeadMIMO(nn.Module):
     def forward(self, data_dict):
         spatial_features_2d = data_dict['spatial_features_2d']
         gt_boxes = data_dict['gt_boxes']
-        batch_size = int(data_dict['batch_size'] / 3)
+        batch_size = int(data_dict['batch_size'] / self.num_heads)
 
         # Pass on specific gt_boxes to each head
         if batch_size == 1:

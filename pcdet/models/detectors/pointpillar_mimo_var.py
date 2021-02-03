@@ -2,18 +2,221 @@ import torch
 
 from .pointpillar import PointPillar
 from ..model_utils import model_nms_utils
+from scipy.stats import circmean
 
 class PointPillarMIMOVAR(PointPillar):
     def post_processing(self, batch_dict):
         """
-        For MIMO call post processing on each head then use IoU to combine
+        For MIMO call post processing on each head then use IoU to cluster
         """
-        # OVERRIDE FOR MIMO testing
+        # OVERRIDE FOR MIMO
         batch_dict['batch_size'] = 1
 
-        pred_dicts, recall_dict = post_processing_single(batch_dict)
+        # print(batch_dict)
+        # for key, value in batch_dict.items() :
+        #     print(key)
+            # print (key, value)
 
-        return pred_dicts, recall_dict
+        # Create three dictionaries for the output
+        batch_dict_a = {
+            'batch_size': batch_dict['batch_size'],
+            'batch_features': batch_dict['batch_features'],
+            'batch_cls_preds': batch_dict['batch_cls_preds'],
+            'batch_box_preds': batch_dict['batch_box_preds'],
+            'batch_var_preds': batch_dict['batch_var_preds'],
+            'cls_preds_normalized': batch_dict['cls_preds_normalized']
+        }
+        batch_dict_b = {
+            'batch_size': batch_dict['batch_size'],
+            'batch_features': batch_dict['batch_features'],
+            'batch_cls_preds': batch_dict['batch_cls_preds_b'],
+            'batch_box_preds': batch_dict['batch_box_preds_b'],
+            'batch_var_preds': batch_dict['batch_var_preds_b'],
+            'cls_preds_normalized': batch_dict['cls_preds_normalized_b']
+        }
+        batch_dict_c = {
+            'batch_size': batch_dict['batch_size'],
+            'batch_features': batch_dict['batch_features'],
+            'batch_cls_preds': batch_dict['batch_cls_preds_c'],
+            'batch_box_preds': batch_dict['batch_box_preds_c'],
+            'batch_var_preds': batch_dict['batch_var_preds_c'],
+            'cls_preds_normalized': batch_dict['cls_preds_normalized_c']
+        }
+
+        pred_dicts_a, recall_dict_a = self.post_processing_single(batch_dict_a)
+        pred_dicts_b, recall_dict_b = self.post_processing_single(batch_dict_b)
+        pred_dicts_c, recall_dict_c = self.post_processing_single(batch_dict_c)
+
+        # batch_size, prediction dictionary, list
+        num_preds_head_a = len(pred_dicts_a[0]['pred_labels'])
+        num_preds_head_b = len(pred_dicts_b[0]['pred_labels'])
+        num_preds_head_c = len(pred_dicts_c[0]['pred_labels'])
+        iou_input = [{
+            'pred_labels': torch.cat((
+                pred_dicts_a[0]['pred_labels'],
+                pred_dicts_b[0]['pred_labels'],
+                pred_dicts_c[0]['pred_labels']), 0),
+            'pred_scores': torch.cat((
+                pred_dicts_a[0]['pred_scores'],
+                pred_dicts_b[0]['pred_scores'],
+                pred_dicts_c[0]['pred_scores']), 0),
+            'pred_scores_all': torch.cat((
+                pred_dicts_a[0]['pred_scores_all'],
+                pred_dicts_b[0]['pred_scores_all'],
+                pred_dicts_c[0]['pred_scores_all']), 0),
+            'pred_boxes': torch.cat((
+                pred_dicts_a[0]['pred_boxes'],
+                pred_dicts_b[0]['pred_boxes'],
+                pred_dicts_c[0]['pred_boxes']), 0),
+            'pred_vars': torch.cat((
+                pred_dicts_a[0]['pred_vars'],
+                pred_dicts_b[0]['pred_vars'],
+                pred_dicts_c[0]['pred_vars']), 0),
+            'pred_head': torch.cat((
+                torch.empty(num_preds_head_a).fill_(1),
+                torch.empty(num_preds_head_b).fill_(2),
+                torch.empty(num_preds_head_c).fill_(3)), 0),
+        }]
+
+        cluster_results = preprocess(iou_input, iouThresh=0.7)
+        total_num_clusters = len(cluster_results['pred_labels'][0])
+
+        # temporary storage
+        # NOTE: We ignore 'anchor' outputs and 'selected' output
+        pred_labels = []
+        pred_scores = []
+        pred_scores_all = []
+        pred_boxes = []
+        pred_vars = []
+        pred_head_ids = []
+
+        # Merge cluster output into a single prediction per cluster
+        MIN_PREDS_IN_CLUSTER = 2 # For three heads a valid cluster size  is >= 3
+        NUM_PRED_HEADS = 3
+        NUM_BAD = 0
+        NUM_GOOD = 0
+        OUTPUT_ALL = False
+        AVG_PRED_HEAD_ID = torch.tensor(0) 
+        for cluster_num in range(total_num_clusters):
+            # Skip when heads are not certain
+            num_preds_in_cluster = len(cluster_results['pred_labels'][0][cluster_num])
+            if num_preds_in_cluster < MIN_PREDS_IN_CLUSTER:
+                NUM_BAD += 1
+                continue
+            # Check if there are more detections in cluster than prediction heads
+            if num_preds_in_cluster > NUM_PRED_HEADS:
+                print("number of predictions in cluster more than", NUM_PRED_HEADS)
+                print(cluster_results['pred_head_ids'][0][cluster_num])
+                exit()
+            # Check if there is output from the same head in this cluster
+            hist = torch.histc(cluster_results['pred_head_ids'][0][cluster_num], \
+                                bins=3, min=1, max=3)
+            if torch.max(hist) > 1:
+                print("A detection head has contributed more than once to this cluster")
+                print('bin histogram', hist)
+                exit()
+            # Check if predictions in cluster have different labels
+            hist = torch.histc(cluster_results['pred_labels'][0][cluster_num], \
+                                bins=4, min=0, max=3)
+            if torch.max(hist) != num_preds_in_cluster:
+                # If there are two preds in cluster, then this is not a min cluster
+                if num_preds_in_cluster == 2:
+                    continue
+                if num_preds_in_cluster == 3:
+                    continue
+                print("This cluster has multiple predicted labels")
+                print('bin histogram', hist)
+                print('Pred labels', cluster_results['pred_labels'][0][cluster_num])
+                print('Top Score', cluster_results['pred_scores'][0][cluster_num])
+                print('SoftMax Score output', cluster_results['pred_scores_all'][0][cluster_num])
+                exit()
+
+            # The cluster is valid
+            NUM_GOOD += 1
+            # Now create the average head output
+            # This does not need to take the mean just take the first one
+            pred_labels.append(cluster_results['pred_labels'][0][cluster_num][0])
+            # Take the means otherwise
+            pred_scores.append(torch.mean(cluster_results['pred_scores'][0][cluster_num]))
+            pred_scores_all.append(torch.mean(cluster_results['pred_scores_all'][0][cluster_num], dim=0))
+            pred_box_tmp = torch.mean(cluster_results['pred_boxes'][0][cluster_num], dim=0)
+            # # We must use circmean for edge case angles
+            # angles = cluster_results['pred_boxes'][0][cluster_num][:,6]
+            # circmean_of_angles = circmean(angles.cpu(), high = np.pi, low = -np.pi)
+            # testing = circmean([pred_box_tmp[6].cpu()], high = np.pi, low = -np.pi)
+            # if np.abs(testing - circmean_of_angles) > 1.0:
+            #     print("circ mean test")
+            #     print("pred_boxes", cluster_results['pred_boxes'][0][cluster_num])
+            #     print("pred_boxes mean", torch.mean(cluster_results['pred_boxes'][0][cluster_num], dim=0))
+            #     print("angles to take mean of", angles)
+            #     print("real mean of angles", circmean_of_angles)
+            #     print("fake mean of angles", pred_box_tmp[6])
+            #     exit()
+            # pred_box_tmp[6] = circmean_of_angles
+
+            # Use the orientation of the box with highest confidence
+            # Using circmean causes problems with orientations flipped 90 deg
+            highest_conf_pred_idx = torch.argmax(cluster_results['pred_scores'][0][cluster_num])
+            pred_box_tmp[6] = cluster_results['pred_boxes'][0][cluster_num][highest_conf_pred_idx][6]
+            # print(cluster_results['pred_scores'][0][cluster_num])
+            # print(highest_conf_pred_idx)
+            # print(cluster_results['pred_boxes'][0][cluster_num])
+            # print(pred_box_tmp[6])
+            # exit()
+            pred_boxes.append(pred_box_tmp)
+            pred_vars.append(torch.mean(cluster_results['pred_vars'][0][cluster_num], dim=0))
+
+            # We have the average head as id 0 and the other heads are 1,2,3
+            pred_head_ids.append(AVG_PRED_HEAD_ID)
+
+            # This will output all prediction head outputs for visualization
+            if OUTPUT_ALL:
+                for pred_idx in range(num_preds_in_cluster):
+                    pred_labels.append(cluster_results['pred_labels'][0][cluster_num][pred_idx])
+                    pred_scores.append(cluster_results['pred_scores'][0][cluster_num][pred_idx])
+                    pred_scores_all.append(cluster_results['pred_scores_all'][0][cluster_num][pred_idx])
+                    pred_boxes.append(cluster_results['pred_boxes'][0][cluster_num][pred_idx])
+                    pred_vars.append(cluster_results['pred_vars'][0][cluster_num][pred_idx])
+                    pred_head_ids.append(cluster_results['pred_head_ids'][0][cluster_num][pred_idx])
+
+        # print('NUM_BAD', NUM_BAD)
+        # print('NUM_GOOD', NUM_GOOD)
+        # print(pred_labels)
+        # print(len(pred_labels))
+        # Make array of dicts with lists
+        # Also stack individual tensors
+        pred_dicts = [{
+            'feature': batch_dict['batch_features'], # NOTE: features of only head A
+            'pred_labels': torch.stack(pred_labels),
+            'pred_scores': torch.stack(pred_scores),
+            'pred_scores_all': torch.stack(pred_scores_all),
+            'pred_boxes': torch.stack(pred_boxes),
+            'pred_vars': torch.stack(pred_vars),
+            'pred_head_ids': torch.stack(pred_head_ids)
+        }]
+
+        # print(pred_dicts)
+
+        # print('cluster results')
+        # for key, value in cluster_results.items() :
+        #     print(key)
+        # print(len(pred_dicts_a[0]['pred_labels']))
+        # print(len(pred_dicts_b[0]['pred_labels']))
+        # print(len(pred_dicts_c[0]['pred_labels']))
+        # print(len(cluster_results['pred_labels']))
+        # print(len(cluster_results['pred_labels'][0]))
+        # print(cluster_results['pred_labels'][0])
+        # print(cluster_results['pred_labels'][1])
+        # print(len(cluster_results['pred_labels'][1]))
+        # print(len(cluster_results['pred_labels'][2]))
+        # print('pred_dicts_a', pred_dicts_a)
+        # print('recall_dict_a', recall_dict_a)
+        # print('pred_dicts_b', pred_dicts_b)
+        # print('recall_dict_b', recall_dict_b)
+        # print(cluster_results)
+        # exit()
+
+        return pred_dicts, recall_dict_a
 
     def post_processing_single(self, batch_dict):
         """
@@ -180,15 +383,17 @@ def preprocess(model_outputs, iouThresh=0.2):
         **It is crucial to realize that the boxes_var is not the variance of all boxes,
         rather, it is given directly from the model**
     """
-    names, scores, boxes_lidar, boxes_lidar_var = extract_info(model_outputs)
-    grouped_names, grouped_scores, grouped_boxes, grouped_boxes_var = \
-    grouping(names, scores, boxes_lidar, boxes_lidar_var, iouThresh)
+    names, scores, scores_all, boxes_lidar, boxes_lidar_var, head_ids = extract_info(model_outputs)
+    grouped_names, grouped_scores, grouped_scores_all, grouped_boxes, grouped_boxes_var, grouped_head_ids = \
+    grouping(names, scores, scores_all, boxes_lidar, boxes_lidar_var, head_ids, iouThresh)
 
     results = {
-        "names": grouped_names,
-        "scores": grouped_scores,
-        "boxes": grouped_boxes,
-        "boxes_var": grouped_boxes_var,
+        "pred_labels": grouped_names,
+        "pred_scores": grouped_scores,
+        "pred_scores_all": grouped_scores_all,
+        "pred_boxes": grouped_boxes,
+        "pred_vars": grouped_boxes_var,
+        "pred_head_ids": grouped_head_ids
     }
     return results
     
@@ -205,26 +410,30 @@ def extract_info(model_outputs):
         boxes_lidar (a list of lists of lists): shape -> (# of samples, # of objects in a sample,
                                                             # of dimension in a box)
     """
-    names, scores, boxes_lidar, boxes_lidar_var = [], [], [], []
+    names, scores, scores_all, boxes_lidar, boxes_lidar_var, head_ids = [], [], [], [], [], []
     
     # Handle edge cases
-    if len(model_outputs) == 0:
-        return names, scores, boxes_lidar, boxes_lidar_var
-    if type(model_outputs) == dict:
-        names.append(model_outputs['name'])
-        scores.append(model_outputs['score'])
-        boxes_lidar.append(model_outputs['boxes_lidar'])
-        boxes_lidar_var.append(model_outputs['boxes_lidar_var'])
-        return names, scores, boxes_lidar, boxes_lidar_var
+    if len(model_outputs) == 0: # No input
+        return names, scores, boxes_lidar, boxes_lidar_var, head_ids
+    if type(model_outputs) == dict: # batch size of 1
+        names.append(model_outputs['pred_labels'])
+        scores.append(model_outputs['pred_scores'])
+        scores_all.append(model_outputs['pred_scores_all'])
+        boxes_lidar.append(model_outputs['pred_boxes'])
+        boxes_lidar_var.append(model_outputs['pred_vars'])
+        head_ids.append(model_outputs['pred_head'])
+        return names, scores, scores_all, boxes_lidar, boxes_lidar_var, head_ids
 
     for model_output in model_outputs:
-        names.append(model_output['name'])
-        scores.append(model_output['score'])
-        boxes_lidar.append(model_output['boxes_lidar'])
-        boxes_lidar_var.append(model_output['boxes_lidar_var'])
-    return names, scores, boxes_lidar, boxes_lidar_var
+        names.append(model_output['pred_labels'])
+        scores.append(model_output['pred_scores'])
+        scores_all.append(model_output['pred_scores_all'])
+        boxes_lidar.append(model_output['pred_boxes'])
+        boxes_lidar_var.append(model_output['pred_vars'])
+        head_ids.append(model_output['pred_head'])
+    return names, scores, scores_all, boxes_lidar, boxes_lidar_var, head_ids
 
-def grouping(names, scores, boxes, boxes_var, iouThresh):
+def grouping(names, scores, scores_all, boxes, boxes_var, head_ids, iouThresh):
     """ Group the detections (multiple MC passes) by objects for multiple samples.
         This function is able to handle 3d bbox or bev box. However,
         for 3d bbox, it doesn't consider the z-axis, making it analogous to the bev case
@@ -248,23 +457,32 @@ def grouping(names, scores, boxes, boxes_var, iouThresh):
         grouped_scores
         grouped_boxes_var
     """
-    grouped_names, grouped_scores, grouped_boxes, grouped_boxes_var = [], [], [], []
+    batch_size = len(boxes)
+    grouped_names, grouped_scores, grouped_scores_all, grouped_boxes, \
+        grouped_boxes_var, grouped_head_ids = [], [], [], [], [], []
 
-    for i in range(len(boxes)):
-        clusters, _ = grouping_single_sample(boxes[i][:,[0,1,3,4,6]], iouThresh)
-        grouped_names_single_sample, grouped_scores_single_sample, grouped_boxes_single_sample, \
-        grouped_boxes_var_single_sample = [], [], [], []
+    
+    for i in range(batch_size):
+        boxes_i_cpu = boxes[i].cpu()
+        clusters, _ = grouping_single_sample(boxes_i_cpu[:,[0,1,3,4,6]], iouThresh)
+        grouped_names_single_sample, grouped_scores_single_sample, grouped_scores_all_single_sample, \
+            grouped_boxes_single_sample, grouped_boxes_var_single_sample, \
+                grouped_head_ids_single_sample = [], [], [], [], [], []
         for cluster in clusters:
-            grouped_names_single_sample.append(np.array(names[i][cluster]))
-            grouped_scores_single_sample.append(np.array(scores[i][cluster]))
-            grouped_boxes_single_sample.append(np.array(boxes[i][cluster, :]))
-            grouped_boxes_var_single_sample.append(np.exp(np.array(boxes[i][cluster, :])))
+            grouped_names_single_sample.append(names[i][cluster])
+            grouped_scores_single_sample.append(scores[i][cluster])
+            grouped_scores_all_single_sample.append(scores_all[i][cluster])
+            grouped_boxes_single_sample.append(boxes[i][cluster, :])
+            grouped_boxes_var_single_sample.append(boxes_var[i][cluster, :])
+            grouped_head_ids_single_sample.append(head_ids[i][cluster])
         grouped_names.append(grouped_names_single_sample)
         grouped_scores.append(grouped_scores_single_sample)
+        grouped_scores_all.append(grouped_scores_all_single_sample)
         grouped_boxes.append(grouped_boxes_single_sample)
         grouped_boxes_var.append(grouped_boxes_var_single_sample)
+        grouped_head_ids.append(grouped_head_ids_single_sample)
 
-    return grouped_names, grouped_scores, grouped_boxes, grouped_boxes_var
+    return grouped_names, grouped_scores, grouped_scores_all, grouped_boxes, grouped_boxes_var, grouped_head_ids
 
 def grouping_single_sample(boxes, iouThresh):
     """ Group the detections (multiple MC passes) by objects for a single sample.

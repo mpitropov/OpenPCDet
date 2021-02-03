@@ -9,6 +9,25 @@ class BaseBEVBackboneMIMO(nn.Module):
         self.model_cfg = model_cfg
         # Multiply by 3 for MIMO
         input_channels = input_channels * 3
+        # print('input_channels', input_channels)
+        # exit()
+
+        # self.mimo_init_block = nn.Sequential(
+        #     # nn.ZeroPad2d(1),
+        #     nn.Conv2d(
+        #         192, 128, kernel_size=1,
+        #         stride=1, padding=0, bias=False
+        #     ),
+        #     nn.BatchNorm2d(128, eps=1e-3, momentum=0.01),
+        #     nn.ReLU(),
+        #     # nn.ZeroPad2d(1),
+        #     nn.Conv2d(
+        #         128, 64, kernel_size=1,
+        #         stride=1, padding=0, bias=False
+        #     ),
+        #     nn.BatchNorm2d(64, eps=1e-3, momentum=0.01),
+        #     nn.ReLU()
+        # )
 
         if self.model_cfg.get('LAYER_NUMS', None) is not None:
             assert len(self.model_cfg.LAYER_NUMS) == len(self.model_cfg.LAYER_STRIDES) == len(self.model_cfg.NUM_FILTERS)
@@ -98,6 +117,12 @@ class BaseBEVBackboneMIMO(nn.Module):
         ups = []
         ret_dict = {}
         x = spatial_features
+
+        # TODO rewrite this, try to slowly decrease psuedo image size
+        # print(x.size()) # torch.Size([2, 192, 496, 432])
+        # x = self.mimo_init_block(x)
+        # print(x.size()) # torch.Size([2, 192, 496, 432])
+        # exit()
         for i in range(len(self.blocks)):
             x = self.blocks[i](x)
 
