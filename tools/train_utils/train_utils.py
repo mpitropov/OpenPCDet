@@ -4,7 +4,7 @@ import os
 import torch
 import tqdm
 from torch.nn.utils import clip_grad_norm_
-
+import numpy as np
 
 def train_one_epoch(model, optimizer, train_loader, model_func, lr_scheduler, accumulated_iter, optim_cfg,
                     rank, tbar, total_it_each_epoch, dataloader_iter, tb_log=None, leave_pbar=False):
@@ -38,6 +38,76 @@ def train_one_epoch(model, optimizer, train_loader, model_func, lr_scheduler, ac
 
         model.train()
         optimizer.zero_grad()
+
+        # MIMO voxel combining
+
+        # Store voxel information
+        voxels = []
+        voxel_coords = []
+        voxel_num_points = []
+        # Keep track of the batch ID when it switches
+        curr_batch_id = 0
+        new_batch_id = 0
+        # Create a dictionary with key= (x_coord,y_coord) value= new array index
+        voxel_coords_dict = {}
+        for index, value in enumerate(batch['voxel_coords']):
+            batch_id = value[0]
+            z_coord = value[1] # This is always 0
+            x_coord = value[2]
+            y_coord = value[3]
+            # Calculate the current head ID
+            head_id = batch_id % 3
+            # Detect if we have switched to a new batch
+            if curr_batch_id != batch_id:
+                curr_batch_id += 1
+                # Detect if we have switched to new group of three point clouds
+                if curr_batch_id % 3 == 0:
+                    new_batch_id += 1
+
+            xy_key = (x_coord, y_coord)
+            if xy_key not in voxel_coords_dict:
+                # Add the new index of where to find this voxel
+                voxel_coords_dict[xy_key] = len(voxels)
+                # Select only the valid points using number of points in voxel
+                # Also add a new column for head ID
+                num_points = batch['voxel_num_points'][index]
+                new_column = np.full(num_points, head_id)
+                new_voxel = np.hstack((batch['voxels'][index][:num_points],
+                    np.atleast_2d(new_column).T))
+                voxels.append(new_voxel)
+                # Switch the batch number for the voxel coordinate
+                new_voxel_coords = batch['voxel_coords'][index]
+                new_voxel_coords[0] = new_batch_id
+                voxel_coords.append(new_voxel_coords)
+                # Keep the same number of points
+                voxel_num_points.append(num_points)
+            else:
+                # Time to combine voxels!
+                voxel_index = voxel_coords_dict[xy_key]
+                # Select only the valid points using number of points in voxel
+                # Also add a new column for head ID
+                # except this time we have to concat with the prev points!
+                num_points = batch['voxel_num_points'][index]
+                new_column = np.full(num_points, head_id)
+                new_voxel = np.hstack((batch['voxels'][index][:num_points],
+                    np.atleast_2d(new_column).T))
+                voxels[voxel_index] = np.concatenate((voxels[voxel_index],
+                    new_voxel), axis=0)
+                # We already have the coords added but we have to update the point count
+                voxel_num_points[voxel_index] += num_points
+
+        # Update the voxels in the batch dict
+        new_max_points_in_voxel = np.max(voxel_num_points)
+        # Create new numpy voxels with new max number of points per voxel!
+        new_voxels = np.zeros((len(voxels), new_max_points_in_voxel, 5))
+        for index, value in enumerate(voxels):
+            num_points_in_voxel = len(value)
+            new_voxels[index][:num_points_in_voxel] = value
+        batch['voxels'] = new_voxels
+        # Convert the other voxel information to np arrays
+        batch['voxel_coords'] = np.array(voxel_coords)
+        batch['voxel_num_points'] = np.array(voxel_num_points)
+
 
         loss, tb_dict, disp_dict = model_func(model, batch)
 
