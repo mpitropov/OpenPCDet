@@ -52,9 +52,10 @@ def eval_one_epoch(cfg, model, dataloader, epoch_id, logger, dist_test=False, sa
         progress_bar = tqdm.tqdm(total=len(dataloader), leave=True, desc='eval', dynamic_ncols=True)
     start_time = time.time()
     for i, batch_dict in enumerate(dataloader):
-        MIMO_MODE = True
 
-        if MIMO_MODE == True:
+        # TODO: Not used and can be removed
+        PSEUDO_IMG_MIMO_MODE = False
+        if PSEUDO_IMG_MIMO_MODE == True:
             # print("points",batch_dict['points'].shape)
             # print("frame_id",batch_dict['frame_id'].shape)
             # print("calib",batch_dict['calib'].shape)
@@ -84,20 +85,6 @@ def eval_one_epoch(cfg, model, dataloader, epoch_id, logger, dist_test=False, sa
                         (batch_dict[key], batch_dict[key], batch_dict[key]), axis=0)
             batch_dict = combined_batch_dict
 
-        # print(batch_dict)
-        # print("points",batch_dict['points'].shape)
-        # print("frame_id",batch_dict['frame_id'].shape)
-        # print("calib",batch_dict['calib'].shape)
-        # print("gt_boxes",batch_dict['gt_boxes'].shape)
-        # print("road_plane",batch_dict['road_plane'].shape)
-        # print("use_lead_xyz",batch_dict['use_lead_xyz'].shape)
-        # print("voxels",batch_dict['voxels'].shape)
-        # print("voxel_coords",batch_dict['voxel_coords'].shape)
-        # print("voxel_num_points",batch_dict['voxel_num_points'].shape)
-        # print("image_shape",batch_dict['image_shape'].shape)
-        # print("batch_size",batch_dict['batch_size'])
-        # print("model", model)
-
         load_data_to_gpu(batch_dict)
         with torch.no_grad():
             pred_dicts, ret_dict = model(batch_dict)
@@ -108,6 +95,7 @@ def eval_one_epoch(cfg, model, dataloader, epoch_id, logger, dist_test=False, sa
             batch_dict, pred_dicts, class_names,
             output_path=final_output_dir if save_to_file else None
         )
+
         det_annos += annos
         if cfg.LOCAL_RANK == 0:
             progress_bar.set_postfix(disp_dict)

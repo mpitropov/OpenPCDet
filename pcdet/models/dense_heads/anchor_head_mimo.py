@@ -9,88 +9,94 @@ class AnchorHeadMIMO(nn.Module):
                  predict_boxes_when_training=True):
         super().__init__()
         self.predict_boxes_when_training = predict_boxes_when_training
-        self.num_heads = 3
+        self.NUM_HEADS = model_cfg.NUM_HEADS
 
         # Create detection heads
-        detection_heads = []
-        for i in range(self.num_heads):
-            detection_heads.append(
+        self.detection_heads = nn.ModuleList()
+        for i in range(self.NUM_HEADS):
+            self.detection_heads.append(
                 AnchorHeadSingleVAR(model_cfg, input_channels, num_class,
                                     class_names, grid_size, point_cloud_range,
                                     predict_boxes_when_training=True))
-        self.head_a = detection_heads[0]
-        self.head_b = detection_heads[1]
-        self.head_c = detection_heads[2]
 
+        # Replaced on first forward pass
+        self.batch_size = 0
+        self.head_gt_indices = []
 
     def forward(self, data_dict):
         spatial_features_2d = data_dict['spatial_features_2d']
         gt_boxes = data_dict['gt_boxes']
-        batch_size = int(data_dict['batch_size'] / self.num_heads)
 
-        # Pass on specific gt_boxes to each head
-        if batch_size == 1:
-            head_a_gt_indices = torch.tensor([0]).cuda()
-            head_b_gt_indices = torch.tensor([1]).cuda()
-            head_c_gt_indices = torch.tensor([2]).cuda()
-        elif batch_size == 2:
-            head_a_gt_indices = torch.tensor([0, 3]).cuda()
-            head_b_gt_indices = torch.tensor([1, 4]).cuda()
-            head_c_gt_indices = torch.tensor([2, 5]).cuda()
-        else:
-            print("ERROR BAD BATCH SIZE")
-            exit()
+        if self.batch_size == 0:
+            self.batch_size = int(data_dict['batch_size'] / self.NUM_HEADS)
+            # Pass on specific gt_boxes to each head
+            # Example num_head=3, batch_size=2 creates a=[0,3], b=[1,4], c=[2,5]
+            for i in range(self.NUM_HEADS):
+                self.head_gt_indices.append( \
+                    torch.tensor(np.arange(i, self.NUM_HEADS*self.batch_size, self.NUM_HEADS)).cuda())
 
         # Run forward pass of each head
-        ret_data_dict_a = self.head_a({
-            'spatial_features_2d': spatial_features_2d,
-            'gt_boxes': gt_boxes.index_select(0, head_a_gt_indices),
-            'batch_size': batch_size
-        })
-        ret_data_dict_b = self.head_b({
-            'spatial_features_2d': spatial_features_2d,
-            'gt_boxes': gt_boxes.index_select(0, head_b_gt_indices),
-            'batch_size': batch_size
-        })
-        ret_data_dict_c = self.head_c({
-            'spatial_features_2d': spatial_features_2d,
-            'gt_boxes': gt_boxes.index_select(0, head_c_gt_indices),
-            'batch_size': batch_size
-        })
-
-        data_dict['batch_features'] = ret_data_dict_a['batch_features']
-        data_dict['batch_features_b'] = ret_data_dict_b['batch_features']
-        data_dict['batch_features_c'] = ret_data_dict_c['batch_features']
+        ret_data_dicts = []
+        for i in range(self.NUM_HEADS):
+            ret_data_dicts.append(
+                self.detection_heads[i]({
+                    'spatial_features_2d': spatial_features_2d,
+                    'gt_boxes': gt_boxes.index_select(0, self.head_gt_indices[i]),
+                    'batch_size': self.batch_size
+                })
+            )
+            # Store batch features in data_dict
+            if i == 0:
+                data_dict['batch_features'] = ret_data_dicts[i]['batch_features']
+            else:
+                data_dict['batch_features_' + str(i)] = ret_data_dicts[i]['batch_features']
 
         if not self.training or self.predict_boxes_when_training:
-            data_dict['batch_cls_preds'] = ret_data_dict_a['batch_cls_preds']
-            data_dict['batch_box_preds'] = ret_data_dict_a['batch_box_preds']
-            data_dict['batch_var_preds'] = ret_data_dict_a['batch_var_preds']
-            data_dict['cls_preds_normalized'] = ret_data_dict_a['cls_preds_normalized']
-            data_dict['batch_cls_preds_b'] = ret_data_dict_b['batch_cls_preds']
-            data_dict['batch_box_preds_b'] = ret_data_dict_b['batch_box_preds']
-            data_dict['batch_var_preds_b'] = ret_data_dict_b['batch_var_preds']
-            data_dict['cls_preds_normalized_b'] = ret_data_dict_b['cls_preds_normalized']
-            data_dict['batch_cls_preds_c'] = ret_data_dict_c['batch_cls_preds']
-            data_dict['batch_box_preds_c'] = ret_data_dict_c['batch_box_preds']
-            data_dict['batch_var_preds_c'] = ret_data_dict_c['batch_var_preds']
-            data_dict['cls_preds_normalized_c'] = ret_data_dict_c['cls_preds_normalized']
+            for i in range(self.NUM_HEADS):
+                if i == 0:
+                    data_dict['batch_cls_preds'] = ret_data_dicts[i]['batch_cls_preds']
+                    data_dict['batch_box_preds'] = ret_data_dicts[i]['batch_box_preds']
+                    data_dict['batch_var_preds'] = ret_data_dicts[i]['batch_var_preds']
+                    data_dict['cls_preds_normalized'] = ret_data_dicts[i]['cls_preds_normalized']
+                else:
+                    data_dict['batch_cls_preds_' + str(i)] = ret_data_dicts[i]['batch_cls_preds']
+                    data_dict['batch_box_preds_' + str(i)] = ret_data_dicts[i]['batch_box_preds']
+                    data_dict['batch_var_preds_' + str(i)] = ret_data_dicts[i]['batch_var_preds']
+                    data_dict['cls_preds_normalized_' + str(i)] = ret_data_dicts[i]['cls_preds_normalized']
 
         return data_dict
 
     def get_loss(self):
         # Get RPN loss and tensorboard output from each head
-        rpn_loss_a, tb_dict = self.head_a.get_loss()
-        rpn_loss_b, tb_dict_b = self.head_b.get_loss()
-        rpn_loss_c, tb_dict_c = self.head_c.get_loss()
+        rpn_loss_list = []
+        tb_dict_list = []
+        for i in range(self.NUM_HEADS):
+            tmp_rpn_loss, tmp_tb_dict = self.detection_heads[i].get_loss()
+            rpn_loss_list.append(tmp_rpn_loss)
+            tb_dict_list.append(tmp_tb_dict)
 
-        # Add tensorboard outputs from all three heads
-        for key in tb_dict:
-            tb_dict[key] += tb_dict_b[key]
-            tb_dict[key] += tb_dict_c[key]
-            tb_dict[key] /= self.num_heads
+        # Store individual head outputs
+        rpn_loss_l1_list = []
+        rpn_loss_cls_list = []
+        for i in range(self.NUM_HEADS):
+            rpn_loss_l1_list.append(tb_dict_list[i]['rpn_loss_l1'])
+            rpn_loss_cls_list.append(tb_dict_list[i]['rpn_loss_cls'])
+
+        # Average tensorboard outputs from all heads
+        for key in tb_dict_list[0]:
+            for i in range(1, self.NUM_HEADS):
+                tb_dict_list[0][key] += tb_dict_list[i][key]
+            tb_dict_list[0][key] /= self.NUM_HEADS
+
+        # Now add the individual head outputs
+        for i in range(self.NUM_HEADS):
+            tb_dict_list[0]['rpn_loss_l1_h' + str(i)] = rpn_loss_l1_list[i]
+            tb_dict_list[0]['rpn_loss_cls_h' + str(i)] = rpn_loss_cls_list[i]
 
         # Add rpn losses together
-        rpn_loss = (rpn_loss_a + rpn_loss_b + rpn_loss_c) / self.num_heads
+        rpn_loss = 0
+        for i in range(self.NUM_HEADS):
+            rpn_loss += rpn_loss_list[i]
+        rpn_loss = rpn_loss / self.NUM_HEADS
 
-        return rpn_loss, tb_dict
+        return rpn_loss, tb_dict_list[0]

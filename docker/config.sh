@@ -15,8 +15,8 @@ KITTI_ROOT=/root/kitti
 LOGDIR=/root/logdir
 
 # Workspace structure on host machine
-HOST_PCDET_ROOT=/path/to/pcdet
+HOST_PCDET_ROOT=/home/matthew/git/cadc_testing/WISEPCDet_MIMO
 HOST_NUSC_ROOT=/path/to/nuscenes
 HOST_CADC_ROOT=/path/to/cadc
-HOST_KITTI_ROOT=/path/to/kitti
-HOST_LOGDIR=/path/to/logdi
+HOST_KITTI_ROOT=/home/matthew/git/cadc_testing/WISEOpenLidarPerceptron/data/kitti
+HOST_LOGDIR=/home/matthew/git/cadc_testing/pcdet_output
