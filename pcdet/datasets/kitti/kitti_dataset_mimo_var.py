@@ -376,6 +376,4 @@ class KittiDatasetMIMOVAR(DatasetTemplate):
 
     # Must also use this method from one of our heads
     def evaluation(self, det_annos, class_names, **kwargs):
-        print("mimo var evaluation called")
-        print('len det annos', len(det_annos))
         return self.head_datasets[0].evaluation(det_annos, class_names, **kwargs)

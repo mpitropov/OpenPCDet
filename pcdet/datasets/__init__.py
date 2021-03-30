@@ -8,6 +8,7 @@ from .dataset import DatasetTemplate
 from .kitti.kitti_dataset import KittiDataset
 from .kitti.kitti_dataset_var import KittiDatasetVAR
 from .kitti.kitti_dataset_mimo_var import KittiDatasetMIMOVAR
+from .kitti.kitti_dataset_mimo_var2 import KittiDatasetMIMOVAR2
 from .nuscenes.nuscenes_dataset import NuScenesDataset
 from .nuscenes.nuscenes_dataset_var import NuScenesDatasetVAR
 from .waymo.waymo_dataset import WaymoDataset
@@ -19,6 +20,7 @@ __all__ = {
     'KittiDataset': KittiDataset,
     'KittiDatasetVAR': KittiDatasetVAR,
     'KittiDatasetMIMOVAR': KittiDatasetMIMOVAR,
+    'KittiDatasetMIMOVAR2': KittiDatasetMIMOVAR2,
     'NuScenesDataset': NuScenesDataset,
     'NuScenesDatasetVAR': NuScenesDatasetVAR,
     'WaymoDataset': WaymoDataset,
@@ -78,11 +80,12 @@ def build_dataloader(dataset_cfg, class_names, batch_size, dist, root_path=None,
     # 1. Shuffle off and persistent_workers to True so we can detect when an epoch is complete
     # 2. Drop last set to true so that it doesn't fail at the end of a batch
     MIMO_MODE = dataset_cfg.DATASET == 'KittiDatasetMIMOVAR'
+    MIMO_MODE2 = dataset_cfg.DATASET == 'KittiDatasetMIMOVAR2'
 
     dataloader = DataLoader(
         dataset, batch_size=batch_size, pin_memory=True, num_workers=workers,
         shuffle=(sampler is None) and training and (MIMO_MODE is False), collate_fn=dataset.collate_batch,
-        drop_last=True and MIMO_MODE, sampler=sampler, timeout=0, persistent_workers=True and MIMO_MODE
+        drop_last=False or MIMO_MODE or MIMO_MODE2, sampler=sampler, timeout=0, persistent_workers=False or MIMO_MODE
     )
 
     return dataset, dataloader, sampler
