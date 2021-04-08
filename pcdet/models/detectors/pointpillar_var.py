@@ -37,7 +37,9 @@ class PointPillarVAR(PointPillar):
                 assert batch_dict['batch_box_preds'].shape.__len__() == 3
                 batch_mask = index
 
+            cls_targets = batch_dict['batch_cls_targets'][batch_mask]
             box_preds = batch_dict['batch_box_preds'][batch_mask]
+            var_preds = batch_dict['batch_var_preds'][batch_mask]
             src_box_preds = box_preds
 
             if not isinstance(batch_dict['batch_cls_preds'], list):
@@ -69,9 +71,6 @@ class PointPillarVAR(PointPillar):
                         clf_loss_name == 'SoftmaxFocalLossV2':
                         # TODO: Implement for multi head
                         raise NotImplementedError
-
-            var_preds = batch_dict['batch_var_preds'][batch_mask]
-            var_preds = torch.exp(var_preds)
 
             if post_process_cfg.NMS_CONFIG.MULTI_CLASSES_NMS:
                 if not isinstance(cls_preds, list):
@@ -125,6 +124,7 @@ class PointPillarVAR(PointPillar):
 
                 final_scores = cls_preds
                 final_labels = label_preds
+                final_target_labels = cls_targets
                 final_boxes = box_preds
                 final_vars = var_preds
                 final_selected = selected
@@ -135,13 +135,13 @@ class PointPillarVAR(PointPillar):
                 thresh_list=post_process_cfg.RECALL_THRESH_LIST
             )
 
-
             record_dict = {
                 'feature': batch_dict['batch_features'][index],
                 'pred_boxes': final_boxes[final_selected],
                 'pred_scores': final_scores[final_selected],
                 'pred_scores_all': src_cls_preds[final_selected],
                 'pred_labels': final_labels[final_selected],
+                'target_labels': final_target_labels[final_selected],
                 'pred_vars': final_vars[final_selected],
                 'anchor_boxes': final_boxes,
                 'anchor_scores': final_scores,

@@ -2,6 +2,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from torch.distributions.von_mises import _log_modified_bessel_fn
 
 from . import box_utils
 
@@ -334,8 +335,7 @@ class VarRegLoss(nn.Module):
                  beta: float = 1.0 / 9.0,
                  code_weights: list = None,
                  l1_weight: float = 0.0,
-                 var_weight: float = 1.0,
-                 calib_weight: float = 0.05):
+                 var_weight: float = 1.0):
         super(VarRegLoss, self).__init__()
         self.beta = beta
         if code_weights is not None:
@@ -343,13 +343,21 @@ class VarRegLoss(nn.Module):
             self.code_weights = torch.from_numpy(self.code_weights).cuda()
         self.l1_weight = l1_weight
         self.var_weight = var_weight
-        self.calib_weight = calib_weight
 
     @staticmethod
     def add_sin_difference(boxes1, boxes2, dim=6):
         assert dim != -1
         rad_pred_encoding = torch.sin(boxes1[..., dim:dim + 1]) * torch.cos(boxes2[..., dim:dim + 1])
         rad_tg_encoding = torch.cos(boxes1[..., dim:dim + 1]) * torch.sin(boxes2[..., dim:dim + 1])
+        boxes1 = torch.cat([boxes1[..., :dim], rad_pred_encoding, boxes1[..., dim + 1:]], dim=-1)
+        boxes2 = torch.cat([boxes2[..., :dim], rad_tg_encoding, boxes2[..., dim + 1:]], dim=-1)
+        return boxes1, boxes2
+
+    @staticmethod
+    def add_cos_difference(boxes1, boxes2, dim=6):
+        assert dim != -1
+        rad_pred_encoding = torch.cos(boxes1[..., dim:dim + 1]) * torch.cos(boxes2[..., dim:dim + 1])
+        rad_tg_encoding = torch.sin(boxes1[..., dim:dim + 1]) * torch.sin(boxes2[..., dim:dim + 1])
         boxes1 = torch.cat([boxes1[..., :dim], rad_pred_encoding, boxes1[..., dim + 1:]], dim=-1)
         boxes2 = torch.cat([boxes2[..., :dim], rad_tg_encoding, boxes2[..., dim + 1:]], dim=-1)
         return boxes1, boxes2
@@ -386,28 +394,41 @@ class VarRegLoss(nn.Module):
             reg_preds_sin, gt_targets_sin = self.add_sin_difference(reg_preds, gt_targets)
             diff = gt_targets_sin - reg_preds_sin
         else:
+            # Not used (does not converge)
             diff = gt_targets - reg_preds
+
+        # cos(a - b) = cosacosb+sinasinb
+        reg_preds_cos, gt_targets_cos = self.add_cos_difference(reg_preds, gt_targets)
+        var_diff = torch.cat([gt_targets_cos[..., :6] - reg_preds_cos[..., :6],
+                        (gt_targets_cos[..., 6] + reg_preds_cos[..., 6]).unsqueeze(-1)],
+                        dim=-1)
 
         # code-wise weighting
         if self.code_weights is not None:
             diff = diff * self.code_weights.view(1, 1, -1)
+            var_diff = var_diff * self.code_weights.view(1, 1, -1)
 
         var_preds = torch.clamp(var_preds, min=-10, max=10)
-        diff_decoded = box_coder.decode_torch(gt_targets, anchors) - \
-                       box_coder.decode_torch(reg_preds, anchors)
 
         loss_l1 = self.smooth_l1_loss(diff, self.beta)
-        loss_var = 0.5*(torch.exp(-var_preds)*torch.pow(diff_decoded, 2)) + 0.5*var_preds
-        loss_calib = self.smooth_l1_loss(torch.exp(var_preds) - \
-                                         torch.pow(diff_decoded.clone().detach(), 2), self.beta)
+        loss_var_linear = 0.5*(torch.exp(-var_preds[..., :6])*torch.pow(var_diff[..., :6], 2)) + \
+                    0.5*var_preds[..., :6]
+        s0 = 1.0 # Offset
+        # TODO: Replace with torch.log(torch.i0()) when the gradient is implemented
+        loss_var_angle = _log_modified_bessel_fn(torch.exp(-var_preds[..., 6]), order=0) - \
+                            torch.exp(-var_preds[..., 6]) * var_diff[..., 6] + \
+                            F.elu(var_preds[..., 6] - s0)
+        loss_var = torch.cat([loss_var_linear, loss_var_angle.unsqueeze(-1)], dim=-1)
 
         # anchor-wise weighting
         if weights is not None:
             assert weights.shape[0] == loss_l1.shape[0] and weights.shape[1] == loss_l1.shape[1]
             loss_l1 *= weights.unsqueeze(-1)
             loss_var *= weights.unsqueeze(-1)
-            loss_calib *= weights.unsqueeze(-1)
+            loss_var_linear *= weights.unsqueeze(-1)
+            loss_var_angle *= weights
 
-        loss = self.l1_weight*loss_l1 + self.var_weight*loss_var + self.calib_weight*loss_calib
+        loss = self.l1_weight*loss_l1 + self.var_weight*loss_var
 
-        return loss, loss_l1.clone().detach(), loss_var.clone().detach(), loss_calib.clone().detach()
+        return loss, loss_l1.clone().detach(), loss_var.clone().detach(), \
+                loss_var_linear.clone().detach(), loss_var_angle.clone().detach()

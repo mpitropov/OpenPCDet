@@ -27,16 +27,14 @@ class AnchorHeadSingleVAR(AnchorHeadSingle):
             else losses_cfg.REG_LOSS_TYPE
         loc_loss_weights = [
             losses_cfg.LOSS_WEIGHTS['loc_l1_weight'],
-            losses_cfg.LOSS_WEIGHTS['loc_var_weight'],
-            losses_cfg.LOSS_WEIGHTS['loc_calib_weight']
+            losses_cfg.LOSS_WEIGHTS['loc_var_weight']
         ]
         self.add_module(
             'reg_loss_func',
             getattr(loss_utils, reg_loss_name)(
                 code_weights=losses_cfg.LOSS_WEIGHTS['code_weights'],
                 l1_weight=losses_cfg.LOSS_WEIGHTS['loc_l1_weight'],
-                var_weight=losses_cfg.LOSS_WEIGHTS['loc_var_weight'],
-                calib_weight=losses_cfg.LOSS_WEIGHTS['loc_calib_weight']
+                var_weight=losses_cfg.LOSS_WEIGHTS['loc_var_weight']
             )
         )
         self.add_module(
@@ -70,7 +68,8 @@ class AnchorHeadSingleVAR(AnchorHeadSingle):
         else:
             dir_cls_preds = None
 
-        if self.training:
+        FORCE_OUTPUT_ANCHOR_LABELS = True # Used in uncertainty evaluation
+        if self.training or FORCE_OUTPUT_ANCHOR_LABELS:
             targets_dict = self.assign_targets(
                 gt_boxes=data_dict['gt_boxes']
             )
@@ -88,7 +87,7 @@ class AnchorHeadSingleVAR(AnchorHeadSingle):
             data_dict['batch_box_preds'] = batch_box_preds
             data_dict['batch_var_preds'] = batch_var_preds
             data_dict['cls_preds_normalized'] = False
-
+            data_dict['batch_cls_targets'] = self.forward_ret_dict['box_cls_labels']
         return data_dict
 
     def get_cls_layer_loss(self):
@@ -165,13 +164,14 @@ class AnchorHeadSingleVAR(AnchorHeadSingle):
                                    var_preds.shape[-1] // self.num_anchors_per_location if not self.use_multihead else
                                    var_preds.shape[-1])
 
-        loc_loss_src, l1_loss_src, var_loss_src, calib_loss_src = \
+        loc_loss_src, l1_loss_src, var_loss_src, var_linear_loss_src, var_angle_loss_src = \
             self.reg_loss_func(box_preds, var_preds, box_reg_targets, anchors, \
                                self.box_coder, take_sin_diff=True, weights=reg_weights)  # [N, M]
         loc_loss = loc_loss_src.sum() / batch_size
         l1_loss = l1_loss_src.sum() / batch_size
         var_loss = var_loss_src.sum() / batch_size
-        calib_loss = calib_loss_src.sum() / batch_size
+        var_linear_loss = var_linear_loss_src.sum() / batch_size
+        var_angle_loss = var_angle_loss_src.sum() / batch_size
 
         loc_loss = loc_loss * self.model_cfg.LOSS_CONFIG.LOSS_WEIGHTS['loc_weight']
         box_loss = loc_loss
@@ -179,7 +179,8 @@ class AnchorHeadSingleVAR(AnchorHeadSingle):
             'rpn_loss_loc': loc_loss.item(),
             'rpn_loss_l1': l1_loss.item(),
             'rpn_loss_var': var_loss.item(),
-            'rpn_loss_calib': calib_loss.item()
+            'rpn_loss_linear_var': var_linear_loss.item(),
+            'rpn_loss_angle_var': var_angle_loss.item()
         }
 
         if box_dir_cls_preds is not None:
@@ -231,6 +232,8 @@ class AnchorHeadSingleVAR(AnchorHeadSingle):
         batch_box_preds = self.box_coder.decode_torch(batch_box_preds, batch_anchors)
         batch_var_preds = var_preds.view(batch_size, num_anchors, -1) if not isinstance(var_preds, list) \
             else torch.cat(var_preds, dim=1).view(batch_size, num_anchors, -1)
+        batch_var_preds = self.box_coder.decode_log_var(
+            batch_box_preds, batch_anchors, batch_var_preds)
 
         if dir_cls_preds is not None:
             dir_offset = self.model_cfg.DIR_OFFSET
