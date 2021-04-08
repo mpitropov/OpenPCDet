@@ -42,24 +42,6 @@ class KittiDatasetMIMOVAR2(DatasetTemplate):
         self.INPUT_REPETITION = dataset_cfg.INPUT_REPETITION
         self.BATCH_REPETITION = dataset_cfg.BATCH_REPETITION
 
-        # Init functions
-        # self.current_epoch = 0
-        # self.prev_index = 0
-
-        # # Initiate dataset for each head
-        # self.head_datasets = []
-        # for i in range(0, self.NUM_HEADS):
-        #     # TODO Generalize __all__[dataset_cfg.DATASET]
-        #     self.head_datasets.append(
-        #         KittiDatasetVAR(
-        #             dataset_cfg=dataset_cfg,
-        #             class_names=class_names,
-        #             root_path=root_path,
-        #             training=training,
-        #             logger=logger,
-        #         )
-        #     )
-
         self.kitti_dataset = KittiDatasetVAR(
             dataset_cfg=dataset_cfg,
             class_names=class_names,
@@ -264,7 +246,7 @@ class KittiDatasetMIMOVAR2(DatasetTemplate):
             # Convert the other voxel information to np arrays
             data_dict['voxel_coords'].append(np.array(voxel_coords))
 
-        # # N * number of heads * batch repetition
+        # N * number of heads * batch repetition
         batch_size = len(batch_list) * self.NUM_HEADS * batch_repetitions
         ret = {}
 
@@ -310,7 +292,17 @@ class KittiDatasetMIMOVAR2(DatasetTemplate):
         Returns:
 
         """
-        return self.kitti_dataset.generate_prediction_dicts(batch_dict, pred_dicts, class_names, output_path)
+        FRAME_NUM = 0 # Must have eval set to batch size of 1
+        ret_dict = self.kitti_dataset.generate_prediction_dicts(batch_dict, pred_dicts, class_names, output_path)
+
+        # Generate prediction dicts for each head
+        ret_dict_list = []
+        for i in range(self.NUM_HEADS):
+            ret_dict_list.append(self.kitti_dataset.generate_prediction_dicts( \
+                batch_dict, pred_dicts[FRAME_NUM]['post_nms_head_outputs'][i], class_names, output_path))
+        ret_dict[FRAME_NUM]['post_nms_head_outputs'] = ret_dict_list
+
+        return ret_dict
 
     # Must also use this method from one of our heads
     def evaluation(self, det_annos, class_names, **kwargs):

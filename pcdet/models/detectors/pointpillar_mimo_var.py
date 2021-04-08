@@ -245,6 +245,11 @@ class PointPillarMIMOVAR(PointPillar):
                     'pred_head_ids': torch.zeros(11).fill_(0) # mean head
                 })
 
+        # Add individual head outputs as extra dict
+        pred_dicts[0]['post_nms_head_outputs'] = []
+        for i in range(len(pred_dicts_list)):
+            pred_dicts[0]['post_nms_head_outputs'].append(pred_dicts_list[i])
+
         return pred_dicts, recall_dict_list[0]
 
     def post_processing_single(self, batch_dict):

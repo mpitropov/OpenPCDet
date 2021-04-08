@@ -53,7 +53,8 @@ class KittiDatasetVAR(KittiDataset):
             pred_labels = box_dict['pred_labels'].cpu().numpy()
             target_labels = box_dict['target_labels'].cpu().numpy()
             pred_vars = box_dict['pred_vars'].cpu().numpy()
-            pred_head_ids = box_dict['pred_head_ids'].cpu().numpy()
+            if 'pred_head_ids' in box_dict:
+                pred_head_ids = box_dict['pred_head_ids'].cpu().numpy()
             # anchor_scores = box_dict['anchor_scores'].cpu().numpy()
             # anchor_boxes = box_dict['anchor_boxes'].cpu().numpy()
             # anchor_labels = box_dict['anchor_labels'].cpu().numpy()
@@ -83,7 +84,8 @@ class KittiDatasetVAR(KittiDataset):
             pred_dict['pred_labels'] = pred_labels
             pred_dict['target_labels'] = target_labels
             pred_dict['pred_vars'] = pred_vars[:,:7]
-            pred_dict['pred_head_ids'] = pred_head_ids
+            if 'pred_head_ids' in box_dict:
+                pred_dict['pred_head_ids'] = pred_head_ids
             # pred_dict['anchor_scores'] = anchor_scores
             # pred_dict['anchor_boxes'] = anchor_boxes[:,:7]
             # pred_dict['anchor_labels'] = anchor_labels
