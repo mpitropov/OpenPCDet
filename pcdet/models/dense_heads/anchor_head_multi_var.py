@@ -156,16 +156,14 @@ class AnchorHeadMultiVAR(AnchorHeadMulti):
         
         loc_loss_weights = [
             losses_cfg.LOSS_WEIGHTS['loc_l1_weight'],
-            losses_cfg.LOSS_WEIGHTS['loc_var_weight'],
-            losses_cfg.LOSS_WEIGHTS['loc_calib_weight']
+            losses_cfg.LOSS_WEIGHTS['loc_var_weight']
         ]
         self.add_module(
             'reg_loss_func',
             getattr(loss_utils, reg_loss_name)(
                 code_weights=losses_cfg.LOSS_WEIGHTS['code_weights'],
                 l1_weight=losses_cfg.LOSS_WEIGHTS['loc_l1_weight'],
-                var_weight=losses_cfg.LOSS_WEIGHTS['loc_var_weight'],
-                calib_weight=losses_cfg.LOSS_WEIGHTS['loc_calib_weight']
+                var_weight=losses_cfg.LOSS_WEIGHTS['loc_var_weight']
             )
         )
         self.add_module(
@@ -215,21 +213,23 @@ class AnchorHeadMultiVAR(AnchorHeadMulti):
                 take_sin_diff = True
             else:
                 take_sin_diff = False
-            loc_loss_src, l1_loss_src, var_loss_src, calib_loss_src = \
+            loc_loss_src, l1_loss_src, var_loss_src, var_linear_loss_src, var_angle_loss_src = \
                 self.reg_loss_func(box_pred, var_preds[idx], box_reg_target, anchors, \
                                    self.box_coder, take_sin_diff=take_sin_diff, weights=reg_weight)  # [N, M]
 
             loc_loss = loc_loss_src.sum() / batch_size
             l1_loss = l1_loss_src.sum() / batch_size
             var_loss = var_loss_src.sum() / batch_size
-            calib_loss = calib_loss_src.sum() / batch_size
+            var_linear_loss = var_linear_loss_src.sum() / batch_size
+            var_angle_loss = var_angle_loss_src.sum() / batch_size
 
             loc_loss = loc_loss * self.model_cfg.LOSS_CONFIG.LOSS_WEIGHTS['loc_weight']
             box_losses += loc_loss
             tb_dict['rpn_loss_loc'] = tb_dict.get('rpn_loss_loc', 0) + loc_loss.item()
             tb_dict['rpn_loss_l1'] = tb_dict.get('rpn_loss_l1', 0) + l1_loss.item()
             tb_dict['rpn_loss_var'] = tb_dict.get('rpn_loss_var', 0) + var_loss.item()
-            tb_dict['rpn_loss_calib'] = tb_dict.get('rpn_loss_calib', 0) + calib_loss.item()
+            tb_dict['rpn_loss_linear_var'] = tb_dict.get('rpn_loss_linear_var', 0) + var_linear_loss.item()
+            tb_dict['rpn_loss_angle_var'] = tb_dict.get('rpn_loss_angle_var', 0) + var_angle_loss.item()
 
             if box_dir_cls_preds is not None:
                 if not isinstance(box_dir_cls_preds, list):

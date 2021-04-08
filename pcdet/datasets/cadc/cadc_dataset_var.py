@@ -20,7 +20,7 @@ class CadcDatasetVAR(CadcDataset):
         Returns:
 
         """
-        def get_template_prediction(num_samples, num_anchors, num_classes):
+        def get_template_prediction(num_samples, num_anchors):
             ret_dict = {
                 'name': np.zeros(num_samples),
                 'truncated': np.zeros(num_samples),
@@ -31,9 +31,9 @@ class CadcDatasetVAR(CadcDataset):
                 'location': np.zeros([num_samples, 3]), 
                 'rotation_y': np.zeros(num_samples),
                 'score': np.zeros(num_samples),
-                'score_all': np.zeros([num_samples, num_classes]),
+                'score_all': np.zeros([num_samples, len(class_names)+1]),
                 'boxes_lidar': np.zeros([num_samples, 7]),
-                # 'pred_labels': np.zeros(num_samples),
+                'pred_labels': np.zeros(num_samples),
                 'pred_vars': np.zeros([num_samples, 7]),
                 # 'anchor_scores': np.zeros(num_anchors),
                 # 'anchor_boxes': np.zeros([num_anchors, 7]),
@@ -49,17 +49,17 @@ class CadcDatasetVAR(CadcDataset):
             pred_boxes = box_dict['pred_boxes'].cpu().numpy()
             pred_labels = box_dict['pred_labels'].cpu().numpy()
             pred_vars = box_dict['pred_vars'].cpu().numpy()
-            anchor_scores = box_dict['anchor_scores'].cpu().numpy()
-            anchor_boxes = box_dict['anchor_boxes'].cpu().numpy()
-            anchor_labels = box_dict['anchor_labels'].cpu().numpy()
-            anchor_vars = box_dict['anchor_vars'].cpu().numpy()
-            selected = box_dict['selected'].cpu().numpy()
+            # anchor_scores = box_dict['anchor_scores'].cpu().numpy()
+            # anchor_boxes = box_dict['anchor_boxes'].cpu().numpy()
+            # anchor_labels = box_dict['anchor_labels'].cpu().numpy()
+            # anchor_vars = box_dict['anchor_vars'].cpu().numpy()
+            # selected = box_dict['selected'].cpu().numpy()
 
             calib = batch_dict['calib'][batch_index]
             image_shape = batch_dict['image_shape'][batch_index]
             pred_boxes_camera = box_utils.boxes3d_lidar_to_kitti_camera(pred_boxes, calib)
 
-            pred_dict = get_template_prediction(pred_scores.shape[0], anchor_scores.shape[0], pred_scores_all.shape[1])
+            pred_dict = get_template_prediction(pred_scores.shape[0], 0)
             if pred_scores.shape[0] == 0:
                 return pred_dict
 
@@ -76,7 +76,7 @@ class CadcDatasetVAR(CadcDataset):
             pred_dict['score'] = pred_scores
             pred_dict['score_all'] = pred_scores_all
             pred_dict['boxes_lidar'] = pred_boxes[:,:7]
-            # pred_dict['pred_labels'] = pred_labels
+            pred_dict['pred_labels'] = pred_labels
             pred_dict['pred_vars'] = pred_vars[:,:7]
             # pred_dict['anchor_scores'] = anchor_scores
             # pred_dict['anchor_boxes'] = anchor_boxes[:,:7]

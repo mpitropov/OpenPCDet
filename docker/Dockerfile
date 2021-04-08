@@ -5,8 +5,8 @@ ENV LC_ALL C.UTF-8
 ARG CMAKE_VERSION=3.16
 ARG CMAKE_BUILD=5
 ARG PYTHON_VERSION=3.6
-ARG TORCH_VERSION=1.2
-ARG TORCHVISION_VERSION=0.4
+ARG TORCH_VERSION=1.8.1
+ARG TORCHVISION_VERSION=0.9.1
 
 RUN APT_INSTALL="apt-get install -y --no-install-recommends" && \
     PIP_INSTALL="python -m pip --no-cache-dir install --upgrade" && \
@@ -112,7 +112,7 @@ RUN APT_INSTALL="apt-get install -y --no-install-recommends" && \
     $GIT_CLONE https://github.com/traveller59/spconv.git \
         ~/spconv && \
     cd ~/spconv && \
-    git checkout 8da6f967fb9a054d8870c3515b1b44eca2103634 && \
+    git checkout f22dd9aee04e2fe8a9fe35866e52620d8d8b3779 && \
     SPCONV_FORCE_BUILD_CUDA=1 \
     python setup.py bdist_wheel && \
     $PIP_INSTALL ~/spconv/dist/spconv-*.whl && \

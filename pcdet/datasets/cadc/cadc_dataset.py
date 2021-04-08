@@ -7,7 +7,6 @@ import json
 from skimage import io
 from pathlib import Path
 import torch
-import spconv
 
 from ...utils import box_utils, common_utils
 from ..dataset import DatasetTemplate

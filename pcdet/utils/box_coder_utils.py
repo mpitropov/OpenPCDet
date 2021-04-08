@@ -76,6 +76,38 @@ class ResidualCoder(object):
         cgs = [t + a for t, a in zip(cts, cas)]
         return torch.cat([xg, yg, zg, dxg, dyg, dzg, rg, *cgs], dim=-1)
 
+    def decode_log_var(self, boxes, anchors, log_var_encodings):
+        """
+        Args:
+            boxes (decoded): (N, 7 + C) [x, y, z, dx, dy, dz, heading, ...]
+            anchors: (B, N, 7 + C) or (N, 7 + C) [x, y, z, dx, dy, dz, heading, ...]
+            log_var_encodings: (B, N, 7 + C) or (N, 7 + C) [x, y, z, dx, dy, dz, heading, ...]
+
+        Returns:
+            vars (decoded): (B, N, 7 + C) or (N, 7 + C) [x, y, z, dx, dy, dz, heading, ...]
+        """
+        xa, ya, za, dxa, dya, dza, ra, *cas = torch.split(anchors, 1, dim=-1)
+        xg, yg, zg, dxg, dyg, dzg, rg, *cgs = torch.split(boxes, 1, dim=-1)
+        # Split to each encoded log variance
+        xt_lv, yt_lv, zt_vl, dxt_lv, dyt_lv, dzt_lv, rt_lv = \
+            torch.split(log_var_encodings, 1, dim=-1)
+
+        # Decode variance of x, y and z
+        diagonal = torch.sqrt(dxa ** 2 + dya ** 2)
+        height = dza
+        x_v = torch.square(diagonal) * torch.exp(xt_lv)
+        y_v = torch.square(diagonal) * torch.exp(yt_lv)
+        z_v = torch.square(height) * torch.exp(zt_vl)
+
+        # Decode variance of w, l, h
+        dx_v = torch.square(dxg) * torch.exp(dxt_lv)
+        dy_v = torch.square(dyg) * torch.exp(dyt_lv)
+        dz_v = torch.square(dzg) * torch.exp(dzt_lv)
+
+        # Decode variance of yaw
+        r_v = torch.exp(rt_lv)
+
+        return torch.cat([x_v, y_v, z_v, dx_v, dy_v, dz_v, r_v], dim=-1)
 
 class PreviousResidualDecoder(object):
     def __init__(self, code_size=7, **kwargs):
