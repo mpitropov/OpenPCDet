@@ -385,51 +385,11 @@ class VarRegLoss(nn.Module):
             loss: (B, #anchors, 7) float tensor.
                 loss for each anchor and 7 respective log variances
         """
-
-        if torch.isnan(gt_targets).any():
-            print(" first gt_targets has nan")
-            exit()
-        if torch.isinf(gt_targets).any():
-            print(" first gt_targets has inf")
-            exit()
-
         gt_targets = torch.where(torch.isnan(gt_targets), reg_preds, gt_targets)  # ignore nan targets
-        # reg_preds = torch.where(torch.isnan(reg_preds), gt_targets, reg_preds)  # ignore nan targets
-        # reg_preds = torch.where(torch.isinf(reg_preds), gt_targets, reg_preds) 
-
-        if torch.isnan(reg_preds).any():
-            print(" reg_preds has nan")
-            exit()
-        if torch.isinf(reg_preds).any():
-            print(" reg_preds has inf")
-            exit()
-
-
-        if torch.isnan(gt_targets).any():
-            print(" gt_targets has nan")
-            exit()
-        if torch.isinf(gt_targets).any():
-            print(" gt_targets has inf")
-            exit()
 
         # sin(a - b) = sinacosb-cosasinb
         if take_sin_diff:
             reg_preds_sin, gt_targets_sin = self.add_sin_difference(reg_preds, gt_targets)
-            zero_tensor = torch.zeros(reg_preds_sin.size()).cuda()
-            reg_preds_sin = torch.where(torch.isnan(reg_preds_sin), zero_tensor, reg_preds_sin)
-            gt_targets_sin = torch.where(torch.isnan(gt_targets_sin), zero_tensor, gt_targets_sin)
-            if torch.isnan(reg_preds_sin).any():
-                print(" reg_preds_sin has nan")
-                exit()
-            if torch.isinf(reg_preds_sin).any():
-                print(" reg_preds_sin has inf")
-                exit()
-            if torch.isnan(gt_targets_sin).any():
-                print(" gt_targets_sin has nan")
-                exit()
-            if torch.isinf(gt_targets_sin).any():
-                print(" gt_targets_sin has inf")
-                exit()
             diff = gt_targets_sin - reg_preds_sin
         else:
             # Not used (does not converge)
@@ -446,52 +406,6 @@ class VarRegLoss(nn.Module):
 
         var_preds = torch.clamp(var_preds, min=-10, max=10)
 
-        zero_tensor = torch.zeros(var_preds.size()).cuda()
-        var_preds = torch.where(torch.isnan(var_preds), zero_tensor, var_preds)
-        diff_decoded = torch.where(torch.isnan(diff_decoded), zero_tensor, diff_decoded)
-
-        if torch.isnan(diff).any():
-            print(" diff has nan")
-            exit()
-        if torch.isinf(diff).any():
-            print(" diff has inf")
-            exit()
-        if torch.isnan(var_preds).any():
-            print(" var_preds has nan")
-            exit()
-        if torch.isinf(var_preds).any():
-            print(" var_preds has inf")
-            exit()
-        if torch.isnan(diff_decoded).any():
-            print(" diff_decoded has nan")
-            exit()
-        if torch.isinf(diff_decoded).any():
-            print(" diff_decoded has inf")
-            exit()
-
-        zero_tensor = torch.zeros(var_preds.size()).cuda()
-        var_preds = torch.where(torch.isnan(var_preds), zero_tensor, var_preds)
-        diff_decoded = torch.where(torch.isnan(diff_decoded), zero_tensor, diff_decoded)
-
-        if torch.isnan(diff).any():
-            print(" diff has nan")
-            exit()
-        if torch.isinf(diff).any():
-            print(" diff has inf")
-            exit()
-        if torch.isnan(var_preds).any():
-            print(" var_preds has nan")
-            exit()
-        if torch.isinf(var_preds).any():
-            print(" var_preds has inf")
-            exit()
-        if torch.isnan(diff_decoded).any():
-            print(" diff_decoded has nan")
-            exit()
-        if torch.isinf(diff_decoded).any():
-            print(" diff_decoded has inf")
-            exit()
-
         loss_l1 = self.smooth_l1_loss(diff, self.beta)
         loss_var_linear = 0.5*(torch.exp(-var_preds[..., :6])*torch.pow(diff[..., :6], 2)) + \
                     0.5*var_preds[..., :6]
@@ -501,60 +415,6 @@ class VarRegLoss(nn.Module):
                             torch.exp(-var_preds[..., 6]) * var_angle_diff + \
                             F.elu(var_preds[..., 6] - s0)
         loss_var = torch.cat([loss_var_linear, loss_var_angle.unsqueeze(-1)], dim=-1)
-
-        loss_l1 = torch.where(torch.isnan(loss_l1), zero_tensor, loss_l1)
-        loss_var = torch.where(torch.isnan(loss_var), zero_tensor, loss_var)
-        loss_calib = torch.where(torch.isnan(loss_calib), zero_tensor, loss_calib)
-
-        if torch.isnan(loss_l1).any():
-            print(" loss_l1 has nan")
-            exit()
-        if torch.isinf(loss_l1).any():
-            print(" loss_l1 has inf")
-            exit()
-            
-        if torch.isnan(loss_var).any():
-            print(" loss_var has nan")
-            exit()
-        if torch.isinf(loss_var).any():
-            print(" loss_var has inf")
-            exit()
-
-        if torch.isnan(loss_calib).any():
-            print(" loss_calib has nan")
-            exit()
-        if torch.isinf(loss_calib).any():
-            print(" loss_calib has inf")
-            exit()
-
-        loss_l1 = torch.where(torch.isnan(loss_l1), zero_tensor, loss_l1)
-        loss_var = torch.where(torch.isnan(loss_var), zero_tensor, loss_var)
-        loss_calib = torch.where(torch.isnan(loss_calib), zero_tensor, loss_calib)
-
-        loss_l1 = torch.where(torch.isinf(loss_l1), zero_tensor, loss_l1)
-        loss_var = torch.where(torch.isinf(loss_var), zero_tensor, loss_var)
-        loss_calib = torch.where(torch.isinf(loss_calib), zero_tensor, loss_calib)
-
-        if torch.isnan(loss_l1).any():
-            print(" loss_l1 has nan")
-            exit()
-        if torch.isinf(loss_l1).any():
-            print(" loss_l1 has inf")
-            exit()
-            
-        if torch.isnan(loss_var).any():
-            print(" loss_var has nan")
-            exit()
-        if torch.isinf(loss_var).any():
-            print(" loss_var has inf")
-            exit()
-
-        if torch.isnan(loss_calib).any():
-            print(" loss_calib has nan")
-            exit()
-        if torch.isinf(loss_calib).any():
-            print(" loss_calib has inf")
-            exit()
 
         # anchor-wise weighting
         if weights is not None:

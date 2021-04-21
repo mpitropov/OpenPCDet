@@ -51,7 +51,8 @@ class KittiDatasetVAR(KittiDataset):
             pred_scores_all = box_dict['pred_scores_all'].cpu().numpy()
             pred_boxes = box_dict['pred_boxes'].cpu().numpy()
             pred_labels = box_dict['pred_labels'].cpu().numpy()
-            target_labels = box_dict['target_labels'].cpu().numpy()
+            if 'target_labels' in box_dict:
+                target_labels = box_dict['target_labels'].cpu().numpy()
             pred_vars = box_dict['pred_vars'].cpu().numpy()
             if 'pred_head_ids' in box_dict:
                 pred_head_ids = box_dict['pred_head_ids'].cpu().numpy()
@@ -82,7 +83,8 @@ class KittiDatasetVAR(KittiDataset):
             pred_dict['score_all'] = pred_scores_all
             pred_dict['boxes_lidar'] = pred_boxes[:,:7]
             pred_dict['pred_labels'] = pred_labels
-            pred_dict['target_labels'] = target_labels
+            if 'target_labels' in box_dict:
+                pred_dict['target_labels'] = target_labels
             pred_dict['pred_vars'] = pred_vars[:,:7]
             if 'pred_head_ids' in box_dict:
                 pred_dict['pred_head_ids'] = pred_head_ids
