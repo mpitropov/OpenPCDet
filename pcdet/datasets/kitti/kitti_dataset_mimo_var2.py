@@ -24,19 +24,6 @@ class KittiDatasetMIMOVAR2(DatasetTemplate):
             dataset_cfg=dataset_cfg, class_names=class_names, training=training, root_path=root_path, logger=logger
         )
 
-        # Create two different dataset proccesors
-        # First one has performs masking and second will shuffle pts and voxelize
-        data_processor_cfg_masking = \
-            [x for x in self.dataset_cfg.DATA_PROCESSOR if x.NAME == 'mask_points_and_boxes_outside_range']
-        data_processor_cfg_shffl_voxelize = \
-            [x for x in self.dataset_cfg.DATA_PROCESSOR if x.NAME != 'mask_points_and_boxes_outside_range']
-        self.data_processor_masking = DataProcessor(
-            data_processor_cfg_masking, point_cloud_range=self.point_cloud_range, training=self.training
-        )
-        self.data_processor_shffl_voxelize = DataProcessor(
-            data_processor_cfg_shffl_voxelize, point_cloud_range=self.point_cloud_range, training=self.training
-        )
-
         self.NUM_HEADS = dataset_cfg.NUM_HEADS
         self.MAX_POINTS_PER_VOXEL = dataset_cfg.DATA_PROCESSOR[2]['MAX_POINTS_PER_VOXEL']
         self.INPUT_REPETITION = dataset_cfg.INPUT_REPETITION
@@ -69,6 +56,17 @@ class KittiDatasetMIMOVAR2(DatasetTemplate):
             fov_flag = self.kitti_dataset.get_fov_flag(pts_rect, img_shape, calib)
             points = points[fov_flag]
 
+        # Voxelize pointcloud with different head ids together for speed up
+        if not self.training:
+            point_cloud_list = []
+            for head_id in range(self.NUM_HEADS):
+                # Add the head id as extra column to points
+                new_column = np.full((len(points), 1), head_id)
+                mod_points = np.hstack((points, new_column))
+                point_cloud_list.append(mod_points)
+            # Overwrite the points variable
+            points = np.concatenate(point_cloud_list)
+
         input_dict = {
             'points': points,
             'frame_id': sample_idx,
@@ -91,10 +89,8 @@ class KittiDatasetMIMOVAR2(DatasetTemplate):
             if road_plane is not None:
                 input_dict['road_plane'] = road_plane
 
-        # Custom prepare data function with two modifications
-        # 1. Takes in head dataset to call instead of self. and head_id
-        # 2. Add head id column to points
-        # 3. Calls our own data processor which does not voxelize
+        # Custom prepare data function
+        # Which also takes in the dataset as input
         data_dict = self.prepare_data(data_dict=input_dict,
                                         head_dataset=self.kitti_dataset)
         data_dict['image_shape'] = img_shape
@@ -131,9 +127,6 @@ class KittiDatasetMIMOVAR2(DatasetTemplate):
                     'gt_boxes_mask': gt_boxes_mask
                 }
             )
-            if len(data_dict['gt_boxes']) == 0:
-                new_index = np.random.randint(head_dataset.__len__())
-                return head_dataset.__getitem__(new_index)
 
         if data_dict.get('gt_boxes', None) is not None:
             selected = common_utils.keep_arrays_by_name(data_dict['gt_names'], head_dataset.class_names)
@@ -143,30 +136,22 @@ class KittiDatasetMIMOVAR2(DatasetTemplate):
             gt_boxes = np.concatenate((data_dict['gt_boxes'], gt_classes.reshape(-1, 1).astype(np.float32)), axis=1)
             data_dict['gt_boxes'] = gt_boxes
 
-        # # Add the head id as extra column to points
-        # new_column = np.full((len(data_dict['points']), 1), head_id)
-        # data_dict['points'] = np.hstack((data_dict['points'], new_column))
-
         data_dict = head_dataset.point_feature_encoder.forward(data_dict)
 
-        # 1. mask_points_and_boxes_outside_range
-        data_dict = self.data_processor_masking.forward(
+        data_dict = head_dataset.data_processor.forward(
             data_dict=data_dict
         )
 
-        # Perform shuffle and voxel
-        data_dict = self.data_processor_shffl_voxelize.forward(
-            data_dict=data_dict
-        )
+        if self.training and len(data_dict['gt_boxes']) == 0:
+            new_index = np.random.randint(head_dataset.__len__())
+            return head_dataset.__getitem__(new_index)
 
         data_dict.pop('gt_names', None)
 
         return data_dict
 
-    # This collate_batch function is modified from the one in dataset.py
-    # Instead of receiving a list of data_dicts (N),
-    # it receives a list of lists of data_dicts (N, number of heads)
-    def collate_batch(self, batch_list, _unused=False):
+    # During training the voxelized point clouds are combined together
+    def modify_batch(self, batch_list):
         data_dict = defaultdict(list)
         batch_size = len(batch_list)
         batch_repetitions = 1
@@ -246,8 +231,34 @@ class KittiDatasetMIMOVAR2(DatasetTemplate):
             # Convert the other voxel information to np arrays
             data_dict['voxel_coords'].append(np.array(voxel_coords))
 
-        # N * number of heads * batch repetition
-        batch_size = len(batch_list) * self.NUM_HEADS * batch_repetitions
+        return data_dict
+
+    # This collate_batch function is modified from the one in dataset.py
+    # Instead of receiving a list of data_dicts (N),
+    # it receives a list of lists of data_dicts (N, number of heads)
+    def collate_batch(self, batch_list, _unused=False):
+        batch_repetitions = 1
+        if self.training:
+            batch_repetitions = self.BATCH_REPETITION
+
+        if self.training:
+            data_dict = self.modify_batch(batch_list)
+            # N * number of heads * batch repetition
+            batch_size = len(batch_list) * self.NUM_HEADS * batch_repetitions
+        else:
+            data_dict = defaultdict(list)
+            for cur_sample in batch_list:
+                for key, val in cur_sample.items():
+                    # Voxel stuff is added once
+                    # Other stuff must be added for each head
+                    if key in ['voxels', 'voxel_coords', 'voxel_num_points']:
+                        data_dict[key].append(val)
+                    else:
+                        for head_id in range(self.NUM_HEADS):
+                            data_dict[key].append(val)
+            # N * number of heads * batch repetition
+            batch_size = len(batch_list) * self.NUM_HEADS * batch_repetitions
+
         ret = {}
 
         for key, val in data_dict.items():
@@ -299,7 +310,7 @@ class KittiDatasetMIMOVAR2(DatasetTemplate):
         ret_dict_list = []
         for i in range(self.NUM_HEADS):
             ret_dict_list.append(self.kitti_dataset.generate_prediction_dicts( \
-                batch_dict, pred_dicts[FRAME_NUM]['post_nms_head_outputs'][i], class_names, output_path))
+                batch_dict, pred_dicts[FRAME_NUM]['pred_dicts_list'][i], class_names, output_path)[FRAME_NUM])
         ret_dict[FRAME_NUM]['post_nms_head_outputs'] = ret_dict_list
 
         return ret_dict

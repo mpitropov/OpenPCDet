@@ -52,39 +52,6 @@ def eval_one_epoch(cfg, model, dataloader, epoch_id, logger, dist_test=False, sa
         progress_bar = tqdm.tqdm(total=len(dataloader), leave=True, desc='eval', dynamic_ncols=True)
     start_time = time.time()
     for i, batch_dict in enumerate(dataloader):
-
-        # TODO: Not used and can be removed
-        PSEUDO_IMG_MIMO_MODE = False
-        if PSEUDO_IMG_MIMO_MODE == True:
-            # print("points",batch_dict['points'].shape)
-            # print("frame_id",batch_dict['frame_id'].shape)
-            # print("calib",batch_dict['calib'].shape)
-            # print("gt_boxes",batch_dict['gt_boxes'].shape)
-            # print("road_plane",batch_dict['road_plane'].shape)
-            # print("use_lead_xyz",batch_dict['use_lead_xyz'].shape)
-            # print("voxels",batch_dict['voxels'].shape)
-            # print("voxel_coords",batch_dict['voxel_coords'].shape)
-            # print("voxel_num_points",batch_dict['voxel_num_points'].shape)
-            # print("image_shape",batch_dict['image_shape'].shape)
-
-            # Create batch_dict with three times the input
-            combined_batch_dict = {}
-            for key in batch_dict:
-                # print("Adding key: ", key)
-                if key == 'batch_size':
-                    combined_batch_dict[key] = 3
-                elif key == 'voxel_coords':
-                    head_b = np.copy(batch_dict[key])
-                    head_b[:,0] += 1
-                    head_c = np.copy(batch_dict[key])
-                    head_c[:,0] += 2
-                    combined_batch_dict[key] = np.concatenate(
-                        (batch_dict[key], head_b, head_c), axis=0)
-                else:
-                    combined_batch_dict[key] = np.concatenate(
-                        (batch_dict[key], batch_dict[key], batch_dict[key]), axis=0)
-            batch_dict = combined_batch_dict
-
         load_data_to_gpu(batch_dict)
         with torch.no_grad():
             pred_dicts, ret_dict = model(batch_dict)
@@ -95,7 +62,6 @@ def eval_one_epoch(cfg, model, dataloader, epoch_id, logger, dist_test=False, sa
             batch_dict, pred_dicts, class_names,
             output_path=final_output_dir if save_to_file else None
         )
-
         det_annos += annos
         if cfg.LOCAL_RANK == 0:
             progress_bar.set_postfix(disp_dict)

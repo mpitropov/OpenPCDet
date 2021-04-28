@@ -47,10 +47,15 @@ class DataProcessor(object):
             except:
                 from spconv.utils import VoxelGenerator
 
+            if not self.training and config.NUM_HEADS != None:
+                max_points_per_voxel = config.MAX_POINTS_PER_VOXEL * config.NUM_HEADS
+            else:
+                max_points_per_voxel = config.MAX_POINTS_PER_VOXEL
+
             voxel_generator = VoxelGenerator(
                 voxel_size=config.VOXEL_SIZE,
                 point_cloud_range=self.point_cloud_range,
-                max_num_points=config.MAX_POINTS_PER_VOXEL,
+                max_num_points=max_points_per_voxel,
                 max_voxels=config.MAX_NUMBER_OF_VOXELS[self.mode]
             )
             grid_size = (self.point_cloud_range[3:6] - self.point_cloud_range[0:3]) / np.array(config.VOXEL_SIZE)

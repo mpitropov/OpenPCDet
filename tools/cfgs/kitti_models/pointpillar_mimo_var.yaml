@@ -14,12 +14,13 @@ DATA_CONFIG:
         - NAME: shuffle_points
           SHUFFLE_ENABLED: {
             'train': True,
-            'test': False
+            'test': True # False
           }
 
         - NAME: transform_points_to_voxels
           VOXEL_SIZE: [0.16, 0.16, 4]
           MAX_POINTS_PER_VOXEL: 32
+          NUM_HEADS: 2 # Located in 3 places
           MAX_NUMBER_OF_VOXELS: {
             'train': 16000,
             'test': 40000
@@ -58,6 +59,9 @@ DATA_CONFIG:
 
 MODEL:
     NAME: PointPillarMIMOVAR
+    # Set to False for OpenPCDet Eval
+    # Set to True for Uncertainty Eval
+    OUTPUT_PRED_LIST: True
 
     VFE:
         NAME: PillarVFE
@@ -71,7 +75,7 @@ MODEL:
         NUM_BEV_FEATURES: 64
 
     BACKBONE_2D:
-        NAME: BaseBEVBackboneMIMO
+        NAME: BaseBEVBackbone
         LAYER_NUMS: [3, 5, 5]
         LAYER_STRIDES: [2, 2, 2]
         NUM_FILTERS: [64, 128, 256]

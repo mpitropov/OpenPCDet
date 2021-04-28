@@ -8,6 +8,7 @@ class PointPillarMIMOVAR(PointPillar):
     def __init__(self, model_cfg, num_class, dataset):
         super().__init__(model_cfg=model_cfg, num_class=num_class, dataset=dataset)
         self.NUM_HEADS = model_cfg.DENSE_HEAD.NUM_HEADS
+        self.OUTPUT_PRED_LIST = model_cfg.OUTPUT_PRED_LIST
 
     def post_processing(self, batch_dict):
         """
@@ -46,6 +47,21 @@ class PointPillarMIMOVAR(PointPillar):
             tmp_pred_dicts, tmp_recall_dict = self.post_processing_single(batch_dict_list[i])
             pred_dicts_list.append(tmp_pred_dicts)
             recall_dict_list.append(tmp_recall_dict)
+
+        if self.OUTPUT_PRED_LIST:
+            # Create dict output with one car so that OpenPCDet does not error
+            pred_dicts = [{
+                'feature': torch.zeros(1),
+                'pred_labels': torch.zeros(1, dtype=torch.int32).fill_(1), # Car
+                'pred_scores': torch.zeros(1).fill_(0.0001), # Low prediction
+                'pred_scores_all': torch.zeros(1,4).fill_(0.0001),
+                'pred_boxes': torch.zeros(1,7),
+                'pred_vars': torch.zeros(1,7),
+                'pred_head_ids': torch.zeros(11).fill_(0), # mean head
+                'pred_dicts_list': pred_dicts_list
+            }]
+            return pred_dicts, recall_dict_list[0]
+
 
         ONLY_HEAD_0 = False
         if ONLY_HEAD_0:
@@ -246,9 +262,9 @@ class PointPillarMIMOVAR(PointPillar):
                 })
 
         # Add individual head outputs as extra dict
-        pred_dicts[0]['post_nms_head_outputs'] = []
+        pred_dicts[0]['pred_dicts_list'] = []
         for i in range(len(pred_dicts_list)):
-            pred_dicts[0]['post_nms_head_outputs'].append(pred_dicts_list[i])
+            pred_dicts[0]['pred_dicts_list'].append(pred_dicts_list[i])
 
         return pred_dicts, recall_dict_list[0]
 
