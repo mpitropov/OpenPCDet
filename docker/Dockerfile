@@ -33,6 +33,7 @@ RUN APT_INSTALL="apt-get install -y --no-install-recommends" && \
         curl \
         unzip \
         unrar \
+        libgl1-mesa-glx \
         && \
 
     wget -O ~/cmake.tar.gz \
@@ -90,6 +91,7 @@ RUN APT_INSTALL="apt-get install -y --no-install-recommends" && \
         tensorboardX \
         tqdm \
         typing \
+        uncertainty-calibration \
         && \
 
 # ==================================================================
@@ -99,6 +101,7 @@ RUN APT_INSTALL="apt-get install -y --no-install-recommends" && \
     $PIP_INSTALL \
         torch==$TORCH_VERSION \
         torchvision==$TORCHVISION_VERSION \
+        mmcv-full -f https://download.openmmlab.com/mmcv/dist/cu101/torch1.8.0/index.html \
         && \
 
 # ==================================================================

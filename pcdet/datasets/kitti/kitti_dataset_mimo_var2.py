@@ -29,6 +29,8 @@ class KittiDatasetMIMOVAR2(DatasetTemplate):
         self.INPUT_REPETITION = dataset_cfg.INPUT_REPETITION
         self.BATCH_REPETITION = dataset_cfg.BATCH_REPETITION
 
+        self.rng = np.random.default_rng()
+
         self.kitti_dataset = KittiDatasetVAR(
             dataset_cfg=dataset_cfg,
             class_names=class_names,
@@ -157,9 +159,8 @@ class KittiDatasetMIMOVAR2(DatasetTemplate):
         batch_repetitions = 1
         if self.training:
             batch_repetitions = self.BATCH_REPETITION
-        rng = np.random.default_rng()
         main_shuffle = np.tile( np.arange(batch_size), batch_repetitions)
-        rng.shuffle(main_shuffle)
+        self.rng.shuffle(main_shuffle)
         to_shuffle = int(len(main_shuffle) * (1. - self.INPUT_REPETITION) )
 
         # Each row contains a different grouping of frames
@@ -167,7 +168,7 @@ class KittiDatasetMIMOVAR2(DatasetTemplate):
         frame_list = []
         for i in range(self.NUM_HEADS):
             rand_portion = copy.deepcopy(main_shuffle[:to_shuffle])
-            rng.shuffle(rand_portion)
+            self.rng.shuffle(rand_portion)
             frame_list.append(np.concatenate([rand_portion, main_shuffle[to_shuffle:]]))
         frame_list = np.transpose(frame_list)
 

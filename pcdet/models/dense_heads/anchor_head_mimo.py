@@ -27,10 +27,14 @@ class AnchorHeadMIMO(nn.Module):
         spatial_features_2d = data_dict['spatial_features_2d']
         gt_boxes = data_dict['gt_boxes']
 
-        if self.batch_size == 0:
-            self.batch_size = int(data_dict['batch_size'] / self.NUM_HEADS)
+        # Calculate batch size based on batch_size and number of heads
+        # batch size might be different on last epoch
+        tmp_batch_size = int(data_dict['batch_size'] / self.NUM_HEADS)
+        if self.batch_size != tmp_batch_size:
+            self.batch_size = tmp_batch_size
             # Pass on specific gt_boxes to each head
             # Example num_head=3, batch_size=2 creates a=[0,3], b=[1,4], c=[2,5]
+            self.head_gt_indices = []
             for i in range(self.NUM_HEADS):
                 self.head_gt_indices.append( \
                     torch.tensor(np.arange(i, self.NUM_HEADS*self.batch_size, self.NUM_HEADS)).cuda())

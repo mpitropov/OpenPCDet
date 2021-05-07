@@ -47,7 +47,7 @@ class DataProcessor(object):
             except:
                 from spconv.utils import VoxelGenerator
 
-            if not self.training and config.NUM_HEADS != None:
+            if not self.training and hasattr(config, 'NUM_HEADS'):
                 max_points_per_voxel = config.MAX_POINTS_PER_VOXEL * config.NUM_HEADS
             else:
                 max_points_per_voxel = config.MAX_POINTS_PER_VOXEL
