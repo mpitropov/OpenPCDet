@@ -356,11 +356,9 @@ class VarRegLoss(nn.Module):
     @staticmethod
     def add_cos_difference(boxes1, boxes2, dim=6):
         assert dim != -1
-        rad_pred_encoding = torch.cos(boxes1[..., dim:dim + 1]) * torch.cos(boxes2[..., dim:dim + 1])
-        rad_tg_encoding = torch.sin(boxes1[..., dim:dim + 1]) * torch.sin(boxes2[..., dim:dim + 1])
-        boxes1 = torch.cat([boxes1[..., :dim], rad_pred_encoding, boxes1[..., dim + 1:]], dim=-1)
-        boxes2 = torch.cat([boxes2[..., :dim], rad_tg_encoding, boxes2[..., dim + 1:]], dim=-1)
-        return boxes1, boxes2
+        rad_pred_encoding = torch.cos(boxes1[..., dim:dim + 1] * 2) * torch.cos(boxes2[..., dim:dim + 1] * 2)
+        rad_tg_encoding = torch.sin(boxes1[..., dim:dim + 1] * 2) * torch.sin(boxes2[..., dim:dim + 1] * 2)
+        return rad_pred_encoding, rad_tg_encoding
 
     @staticmethod
     def smooth_l1_loss(diff, beta):
@@ -397,26 +395,24 @@ class VarRegLoss(nn.Module):
             # Not used (does not converge)
             diff = gt_targets - reg_preds
 
-        # cos(a - b) = cosacosb+sinasinb
+        # cos(2a - 2b) = cos2acos2b+sin2asin2b
         reg_preds_cos, gt_targets_cos = self.add_cos_difference(reg_preds, gt_targets)
-        var_diff = torch.cat([gt_targets_cos[..., :6] - reg_preds_cos[..., :6],
-                        (gt_targets_cos[..., 6] + reg_preds_cos[..., 6]).unsqueeze(-1)],
-                        dim=-1)
+        var_angle_diff = (gt_targets_cos + reg_preds_cos).squeeze(-1)
 
         # code-wise weighting
         if self.code_weights is not None:
             diff = diff * self.code_weights.view(1, 1, -1)
-            var_diff = var_diff * self.code_weights.view(1, 1, -1)
+            var_angle_diff = var_angle_diff * self.code_weights.view(1, 1, -1)[...,6]
 
         var_preds = torch.clamp(var_preds, min=-10, max=10)
 
         loss_l1 = self.smooth_l1_loss(diff, self.beta)
-        loss_var_linear = 0.5*(torch.exp(-var_preds[..., :6])*torch.pow(var_diff[..., :6], 2)) + \
+        loss_var_linear = 0.5*(torch.exp(-var_preds[..., :6])*torch.pow(diff[..., :6], 2)) + \
                     0.5*var_preds[..., :6]
         s0 = 1.0 # Offset
         # TODO: Replace with torch.log(torch.i0()) when the gradient is implemented
         loss_var_angle = _log_modified_bessel_fn(torch.exp(-var_preds[..., 6]), order=0) - \
-                            torch.exp(-var_preds[..., 6]) * var_diff[..., 6] + \
+                            torch.exp(-var_preds[..., 6]) * var_angle_diff + \
                             F.elu(var_preds[..., 6] - s0)
         loss_var = torch.cat([loss_var_linear, loss_var_angle.unsqueeze(-1)], dim=-1)
 
