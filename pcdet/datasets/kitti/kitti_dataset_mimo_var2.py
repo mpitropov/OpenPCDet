@@ -10,6 +10,8 @@ from .kitti_dataset_var import KittiDatasetVAR
 from ..dataset import DatasetTemplate
 from ..processor.data_processor import DataProcessor
 
+import time
+
 class KittiDatasetMIMOVAR2(DatasetTemplate):
     def __init__(self, dataset_cfg, class_names, training=True, root_path=None, logger=None):
         """
@@ -39,10 +41,14 @@ class KittiDatasetMIMOVAR2(DatasetTemplate):
             logger=logger,
         )
 
+        self.time_list = []
+        self.frame_count = 0
+
     def __len__(self):
         return len(self.kitti_dataset)
 
     def __getitem__(self, index):
+        self.start_time = time.time()
         if self.kitti_dataset._merge_all_iters_to_one_epoch:
             index = index % len(self.kitti_dataset.kitti_infos)
 
@@ -178,9 +184,10 @@ class KittiDatasetMIMOVAR2(DatasetTemplate):
             curr_voxel_index = 0
             total_num_voxels = 0
 
+            # Loop through frames in this grouping
             for head_id in range(self.NUM_HEADS):
                 batch_list_index = frame_list[frame_group_index][head_id]
-                # First add all the non voxel stuff
+                # Add non voxel components
                 for key, val in batch_list[batch_list_index].items():
                     if key in ['voxels', 'voxel_coords', 'voxel_num_points']:
                         continue
@@ -285,6 +292,15 @@ class KittiDatasetMIMOVAR2(DatasetTemplate):
                 raise TypeError
 
         ret['batch_size'] = batch_size
+
+
+        if not self.training:
+            self.frame_count += 1
+            t1 = time.time()
+            total_time = t1 - self.start_time
+            self.time_list.append(total_time)
+            if self.frame_count == self.__len__():
+                print('Mean data processing time', np.mean(self.time_list))
 
         return ret
 

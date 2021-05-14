@@ -9,6 +9,7 @@ from .augmentor.data_augmentor import DataAugmentor
 from .processor.data_processor import DataProcessor
 from .processor.point_feature_encoder import PointFeatureEncoder
 
+import time
 
 class DatasetTemplate(torch_data.Dataset):
     def __init__(self, dataset_cfg=None, class_names=None, training=True, root_path=None, logger=None):
@@ -38,6 +39,9 @@ class DatasetTemplate(torch_data.Dataset):
         self.voxel_size = self.data_processor.voxel_size
         self.total_epochs = 0
         self._merge_all_iters_to_one_epoch = False
+
+        self.time_list = []
+        self.frame_count = 0
 
     @property
     def mode(self):
@@ -147,8 +151,8 @@ class DatasetTemplate(torch_data.Dataset):
 
         return data_dict
 
-    @staticmethod
-    def collate_batch(batch_list, _unused=False):
+    # @staticmethod
+    def collate_batch(self, batch_list, _unused=False):
         data_dict = defaultdict(list)
         for cur_sample in batch_list:
             for key, val in cur_sample.items():
@@ -179,4 +183,13 @@ class DatasetTemplate(torch_data.Dataset):
                 raise TypeError
 
         ret['batch_size'] = batch_size
+
+        if not self.training:
+            self.frame_count += 1
+            t1 = time.time()
+            total_time = t1 - self.start_time
+            self.time_list.append(total_time)
+            if self.frame_count == self.__len__():
+                print('Mean data processing time', np.mean(self.time_list))
+
         return ret

@@ -8,6 +8,7 @@ from ...ops.roiaware_pool3d import roiaware_pool3d_utils
 from ...utils import box_utils, calibration_kitti, common_utils, object3d_kitti
 from ..dataset import DatasetTemplate
 
+import time
 
 class KittiDataset(DatasetTemplate):
     def __init__(self, dataset_cfg, class_names, training=True, root_path=None, logger=None):
@@ -338,6 +339,7 @@ class KittiDataset(DatasetTemplate):
         return len(self.kitti_infos)
 
     def __getitem__(self, index):
+        self.start_time = time.time()
         # index = 4
         if self._merge_all_iters_to_one_epoch:
             index = index % len(self.kitti_infos)

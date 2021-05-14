@@ -18,6 +18,9 @@ def statistics_info(cfg, ret_dict, metric, disp_dict):
     disp_dict['recall_%s' % str(min_thresh)] = \
         '(%d, %d) / %d' % (metric['recall_roi_%s' % str(min_thresh)], metric['recall_rcnn_%s' % str(min_thresh)], metric['gt_num'])
 
+def apply_dropout(m):
+    if type(m) == torch.nn.Dropout:
+        m.train()
 
 def eval_one_epoch(cfg, model, dataloader, epoch_id, logger, dist_test=False, save_to_file=False, result_dir=None):
     result_dir.mkdir(parents=True, exist_ok=True)
@@ -48,13 +51,21 @@ def eval_one_epoch(cfg, model, dataloader, epoch_id, logger, dist_test=False, sa
         )
     model.eval()
 
+    # Enable only for MC-Dropout timing
+    # model.apply(apply_dropout)
+
     if cfg.LOCAL_RANK == 0:
         progress_bar = tqdm.tqdm(total=len(dataloader), leave=True, desc='eval', dynamic_ncols=True)
     start_time = time.time()
+    time_diff_list = []
     for i, batch_dict in enumerate(dataloader):
         load_data_to_gpu(batch_dict)
         with torch.no_grad():
+            t0 = time.time()
             pred_dicts, ret_dict = model(batch_dict)
+            t1 = time.time()
+            time_diff = t1-t0
+            time_diff_list.append(time_diff)
         disp_dict = {}
 
         statistics_info(cfg, ret_dict, metric, disp_dict)
@@ -66,6 +77,8 @@ def eval_one_epoch(cfg, model, dataloader, epoch_id, logger, dist_test=False, sa
         if cfg.LOCAL_RANK == 0:
             progress_bar.set_postfix(disp_dict)
             progress_bar.update()
+
+    print('mean forward pass time', np.mean(time_diff_list))
 
     if cfg.LOCAL_RANK == 0:
         progress_bar.close()
