@@ -26,13 +26,18 @@ class Calibration(object):
         else:
             calib = calib_file
     
-        # Projection matrix from camera to image 
-        self.t_img_cam = [np.eye(3,4)] * 8
-        # Projection matrix from camera to lidar 
-        self.t_cam_lidar = [np.eye(4,4)] * 8
+        # Projection matrix from camera to image
+        self.t_img_cam = []
+        # Projection matrix from camera to lidar
+        self.t_cam_lidar = []
         for cam in range(8):
-            self.t_img_cam[cam][0:3,0:3] = np.array(calib['CAM0' + str(cam)]['camera_matrix']['data']).reshape(-1, 3)
-            self.t_cam_lidar[cam] = np.linalg.inv(np.array(calib['extrinsics']['T_LIDAR_CAM0' + str(cam)]))
+            t_img_cam = np.eye(4)
+            t_img_cam[0:3, 0:3] = np.array(calib['CAM0' + str(cam)]['camera_matrix']['data']).reshape(-1, 3)
+            t_img_cam = t_img_cam[0:3, 0:4]  # remove last row
+            t_cam_lidar = np.linalg.inv(np.array(calib['extrinsics']['T_LIDAR_CAM0' + str(cam)]))
+
+            self.t_img_cam.append(t_img_cam)
+            self.t_cam_lidar.append(t_cam_lidar)
 
     def cart_to_hom(self, pts):
         """
