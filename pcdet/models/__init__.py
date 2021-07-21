@@ -14,11 +14,17 @@ def build_network(model_cfg, num_class, dataset):
 
 
 def load_data_to_gpu(batch_dict):
+    # print(batch_dict.items())
     for key, val in batch_dict.items():
         if not isinstance(val, np.ndarray):
             continue
         if key in ['frame_id', 'metadata', 'calib', 'image_shape', 'sample_idx']:
             continue
+        if key in ['seq_id']: # tracking dataset
+            continue
+        # print('key', key)
+        # print('val', val)
+
         batch_dict[key] = torch.from_numpy(val).float().cuda()
 
 

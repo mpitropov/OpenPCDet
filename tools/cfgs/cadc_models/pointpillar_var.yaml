@@ -3,7 +3,7 @@ CLASS_NAMES: ['Car', 'Pedestrian', 'Pickup_Truck']
 DATA_CONFIG: 
     _BASE_CONFIG_: cfgs/dataset_configs/cadc_dataset.yaml
     DATASET: 'CadcDatasetVAR'
-    POINT_CLOUD_RANGE: [-50, -50, -5, 50, 50, 3]
+    POINT_CLOUD_RANGE: [-50, -50, -3, 50, 50, 3]
     DATA_PROCESSOR:
         - NAME: mask_points_and_boxes_outside_range
           REMOVE_OUTSIDE_BOXES: True
@@ -15,8 +15,8 @@ DATA_CONFIG:
           }
 
         - NAME: transform_points_to_voxels
-          VOXEL_SIZE: [0.25, 0.25, 8]
-          MAX_POINTS_PER_VOXEL: 64
+          VOXEL_SIZE: [0.2, 0.2, 6]
+          MAX_POINTS_PER_VOXEL: 32
           MAX_NUMBER_OF_VOXELS: {
             'train': 16000,
             'test': 40000
@@ -56,9 +56,9 @@ MODEL:
         ANCHOR_GENERATOR_CONFIG: [
             {
                 'class_name': 'Car',
-                'anchor_sizes': [[3.9, 1.6, 1.56]],
+                'anchor_sizes': [[4.58, 1.88, 1.67]],
                 'anchor_rotations': [0, 1.57],
-                'anchor_bottom_heights': [-1.78],
+                'anchor_bottom_heights': [-2.18],
                 'align_center': False,
                 'feature_map_stride': 2,
                 'matched_threshold': 0.6,
@@ -66,9 +66,9 @@ MODEL:
             },
             {
                 'class_name': 'Pedestrian',
-                'anchor_sizes': [[0.8, 0.6, 1.73]],
+                'anchor_sizes': [[0.80, 0.75, 1.76]],
                 'anchor_rotations': [0, 1.57],
-                'anchor_bottom_heights': [-0.6],
+                'anchor_bottom_heights': [-2.03],
                 'align_center': False,
                 'feature_map_stride': 2,
                 'matched_threshold': 0.5,
@@ -76,9 +76,9 @@ MODEL:
             },
             {
                 'class_name': 'Pickup_Truck',
-                'anchor_sizes': [[5.89, 2.03, 1.92]],
+                'anchor_sizes': [[5.76, 2.09, 2.01]],
                 'anchor_rotations': [0, 1.57],
-                'anchor_bottom_heights': [-0.6],
+                'anchor_bottom_heights': [-2.43],
                 'align_center': False,
                 'feature_map_stride': 2,
                 'matched_threshold': 0.6,
@@ -103,7 +103,7 @@ MODEL:
                 'dir_weight': 0.2,
                 'code_weights': [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0],
                 'loc_l1_weight': 1.0,
-                'loc_var_weight': 0.0
+                'loc_var_weight': 0.5
             }
 
     POST_PROCESSING:

@@ -1,13 +1,25 @@
 import numpy as np
 import torch
+from torch._C import TensorType
 import torch.nn as nn
+import copy
 
-import time
-
-class BaseBEVBackbone(nn.Module):
+class BaseBEVBackboneMIMO(nn.Module):
     def __init__(self, model_cfg, input_channels):
         super().__init__()
         self.model_cfg = model_cfg
+
+        # MIMO specific params
+        if self.model_cfg.get('NUM_HEADS', None) is not None:
+            self.NUM_HEADS = self.model_cfg.NUM_HEADS
+        if self.model_cfg.get('INPUT_REPETITION', None) is not None:
+            self.INPUT_REPETITION = self.model_cfg.INPUT_REPETITION
+        if self.model_cfg.get('BATCH_REPETITION', None) is not None:
+            self.BATCH_REPETITION = self.model_cfg.BATCH_REPETITION
+        self.rng = np.random.default_rng()
+
+        # Multiply by NUM_HEADS for MIMO
+        input_channels = input_channels * self.NUM_HEADS
 
         if self.model_cfg.get('LAYER_NUMS', None) is not None:
             assert len(self.model_cfg.LAYER_NUMS) == len(self.model_cfg.LAYER_STRIDES) == len(self.model_cfg.NUM_FILTERS)
@@ -79,10 +91,6 @@ class BaseBEVBackbone(nn.Module):
 
         self.num_bev_features = c_in
 
-        # For timing
-        self.bb_frame_count = 0
-        self.bb_time_diffs = []
-
     def forward(self, data_dict):
         """
         Args:
@@ -90,13 +98,49 @@ class BaseBEVBackbone(nn.Module):
                 spatial_features
         Returns:
         """
-        # Timing count
-        # if not self.training:
-        #     self.bb_time_diffs.append(time.time() - data_dict['start_time'])
-        #     self.bb_frame_count += 1
-        #     if self.bb_frame_count == 3769:
-        #         print('mean time to backbone', np.mean(self.bb_time_diffs))
+        # MIMO specific code
+        # Stack spatial features and add gt to the input
+        batch_size = data_dict['batch_size']
+        batch_repetitions = 1
+        if self.training:
+            batch_repetitions = self.BATCH_REPETITION
+        main_shuffle = np.tile( np.arange(batch_size), batch_repetitions)
+        self.rng.shuffle(main_shuffle)
+        to_shuffle = int(len(main_shuffle) * (1. - self.INPUT_REPETITION) )
 
+        # Each row contains a different grouping of frames
+        # Each column is a different detection head
+        frame_list = []
+        for i in range(self.NUM_HEADS):
+            rand_portion = copy.deepcopy(main_shuffle[:to_shuffle])
+            self.rng.shuffle(rand_portion)
+            frame_list.append(np.concatenate([rand_portion, main_shuffle[to_shuffle:]]))
+        frame_list = np.transpose(frame_list)
+
+        gt_boxes = [] # This is simply an array of GTs to add
+        spatial_feats = [] # This is a bit more complex each row is a head and columns are things to add to that head
+        for frame_group_index in range(len(frame_list)):
+            new_spatial_feats_row = []
+            # Loop through frames in this grouping
+            for head_id in range(self.NUM_HEADS):
+                # Get the batch index to copy over information
+                batch_list_index = frame_list[frame_group_index][head_id]
+                gt_boxes.append(data_dict['gt_boxes'][batch_list_index])
+                # Don't clone first head
+                if head_id == 0:
+                    new_spatial_feats_row.append(data_dict['spatial_features'][batch_list_index])
+                else:
+                    new_spatial_feats_row.append(data_dict['spatial_features'][batch_list_index].clone())
+            # Add to the original list
+            test = torch.cat(new_spatial_feats_row, 0).unsqueeze(0)
+            spatial_feats.append(test)
+
+        # N * number of heads * batch repetition
+        data_dict['batch_size'] = data_dict['batch_size'] * self.NUM_HEADS * batch_repetitions
+        data_dict['gt_boxes'] = torch.stack(gt_boxes)
+        data_dict['spatial_features'] = torch.stack(spatial_feats, 1).squeeze(0)
+
+        # Original code
         spatial_features = data_dict['spatial_features']
         ups = []
         ret_dict = {}

@@ -80,3 +80,7 @@ class BaseBEVBackboneDropout(BaseBEVBackbone):
             ))
 
         self.num_bev_features = c_in
+
+        # For timing
+        self.bb_frame_count = 0
+        self.bb_time_diffs = []

@@ -25,7 +25,9 @@ class AnchorHeadMIMO(nn.Module):
 
     def forward(self, data_dict):
         spatial_features_2d = data_dict['spatial_features_2d']
-        gt_boxes = data_dict['gt_boxes']
+        gt_boxes = None
+        if 'gt_boxes' in data_dict:
+            gt_boxes = data_dict['gt_boxes']
 
         # Calculate batch size based on batch_size and number of heads
         # batch size might be different on last epoch
@@ -42,10 +44,13 @@ class AnchorHeadMIMO(nn.Module):
         # Run forward pass of each head
         ret_data_dicts = []
         for i in range(self.NUM_HEADS):
+            selected_gt_boxes = None
+            if 'gt_boxes' in data_dict:
+                selected_gt_boxes = gt_boxes.index_select(0, self.head_gt_indices[i])
             ret_data_dicts.append(
                 self.detection_heads[i]({
                     'spatial_features_2d': spatial_features_2d,
-                    'gt_boxes': gt_boxes.index_select(0, self.head_gt_indices[i]),
+                    'gt_boxes': selected_gt_boxes,
                     'batch_size': self.batch_size
                 })
             )

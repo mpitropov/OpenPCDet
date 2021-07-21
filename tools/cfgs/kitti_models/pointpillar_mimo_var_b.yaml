@@ -2,7 +2,7 @@ CLASS_NAMES: ['Car', 'Pedestrian', 'Cyclist']
 
 DATA_CONFIG: 
     _BASE_CONFIG_: cfgs/dataset_configs/kitti_dataset.yaml
-    DATASET: 'KittiDatasetMIMOVAR2'
+    DATASET: 'KittiDatasetMIMOVARB'
     NUM_HEADS: 2 # Must also be changed in the model config
     INPUT_REPETITION: 0.0
     BATCH_REPETITION: 1
@@ -14,7 +14,7 @@ DATA_CONFIG:
         - NAME: shuffle_points
           SHUFFLE_ENABLED: {
             'train': True,
-            'test': True # False
+            'test': False
           }
 
         - NAME: transform_points_to_voxels
@@ -53,8 +53,8 @@ DATA_CONFIG:
               WORLD_SCALE_RANGE: [0.95, 1.05]
     POINT_FEATURE_ENCODING: {
         encoding_type: absolute_coordinates_encoding,
-        used_feature_list: ['x', 'y', 'z', 'intensity', 'head_id'],
-        src_feature_list: ['x', 'y', 'z', 'intensity', 'head_id'],
+        used_feature_list: ['x', 'y', 'z', 'intensity'],
+        src_feature_list: ['x', 'y', 'z', 'intensity'],
     }
 
 MODEL:

@@ -62,6 +62,7 @@ def eval_one_epoch(cfg, model, dataloader, epoch_id, logger, dist_test=False, sa
         load_data_to_gpu(batch_dict)
         with torch.no_grad():
             t0 = time.time()
+            batch_dict['start_time'] = t0 # Used to time to the backbone
             pred_dicts, ret_dict = model(batch_dict)
             t1 = time.time()
             time_diff = t1-t0

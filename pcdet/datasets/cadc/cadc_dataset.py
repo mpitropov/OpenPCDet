@@ -14,6 +14,7 @@ from ...ops.roiaware_pool3d import roiaware_pool3d_utils
 from pcdet.config import cfg
 from pcdet.datasets.cadc import cadc_calibration
 
+import time
 
 class CadcDataset(DatasetTemplate):
     def __init__(self, dataset_cfg, class_names, training=True, root_path=None, logger=None):
@@ -28,6 +29,7 @@ class CadcDataset(DatasetTemplate):
         super().__init__(
             dataset_cfg=dataset_cfg, class_names=class_names, training=training, root_path=root_path, logger=logger
         )
+        self.root_path = Path(self.dataset_cfg.DATA_PATH)
         self.split = self.dataset_cfg.DATA_SPLIT[self.mode]
         self.root_split_path = self.root_path / ('training' if self.split != 'test' else 'testing')
 
@@ -70,7 +72,6 @@ class CadcDataset(DatasetTemplate):
         lidar_file = os.path.join(self.root_path, date, set_num, 'labeled', 'lidar_points', 'data', '%s.bin' % idx)
         assert os.path.exists(lidar_file)
         points = np.fromfile(lidar_file, dtype=np.float32).reshape(-1, 4)
-        points[:, 3] /= 255
         return points
 
     def get_image_shape(self, sample_idx):
@@ -147,15 +148,14 @@ class CadcDataset(DatasetTemplate):
                 else:
                     continue
             # filter by point_count
-            if obj['points_count'] < point_count_threshold[obj['label']]:
+            if obj['points_count'] == 0:
                 ratio_to_criteria = obj['points_count'] / point_count_threshold[obj['label']]
                 if ratio_to_criteria > closest_ratio_to_criteria:
                     closest_idx_to_criteria = idx
                 continue
             # filter by distance
             x, y, z = obj['position']['x'],obj['position']['y'],obj['position']['z']
-            distance = np.sqrt(np.square(x)+np.square(y)+np.square(z))
-            if distance > distance_threshold:
+            if abs(x) > distance_threshold or abs(y) > distance_threshold:
                 continue
             obj_list.append(obj)
         
@@ -167,28 +167,47 @@ class CadcDataset(DatasetTemplate):
 
         annotations = {}
         annotations['name'] = np.array([obj['label'] for obj in obj_list])
-        annotations['num_points_in_gt'] = [[obj['points_count'] for obj in obj_list]]
+        annotations['num_points_in_gt'] = np.array([obj['points_count'] for obj in obj_list])
         
-        loc_lidar = np.array([[obj['position']['x'],obj['position']['y'],obj['position']['z']] for obj in obj_list]) 
-        dims = np.array([[obj['dimensions']['x'],obj['dimensions']['y'],obj['dimensions']['z']] for obj in obj_list])
+        loc_lidar = np.array([[obj['position']['x'],obj['position']['y'],obj['position']['z']] for obj in obj_list])
+        # Scale AI gives x as width and y as length, we must switch these
+        dims = np.array([[obj['dimensions']['y'],obj['dimensions']['x'],obj['dimensions']['z']] for obj in obj_list])
         rots = np.array([obj['yaw'] for obj in obj_list])
         gt_boxes_lidar = np.concatenate([loc_lidar, dims, rots[..., np.newaxis]], axis=1)
         annotations['gt_boxes_lidar'] = gt_boxes_lidar
         
         # in camera 0 frame. Probably meaningless as most objects aren't in frame.
-        annotations['location'] = calib.lidar_to_rect(loc_lidar) 
+        annotations['location'] = calib.lidar_to_rect(loc_lidar)
         annotations['rotation_y'] = rots
+        # Scale AI gives x as width and y as length, we must switch these
         annotations['dimensions'] = np.array([[obj['dimensions']['y'], obj['dimensions']['z'], obj['dimensions']['x']] for obj in obj_list])  # lhw format
-        
-        gt_boxes_camera = box_utils.boxes3d_lidar_to_kitti_camera(gt_boxes_lidar, calib)
-        
+
+        # Should not be modifying the original lidar positions
+        gt_boxes_copy = copy.deepcopy(gt_boxes_lidar)
+        gt_boxes_camera = box_utils.boxes3d_lidar_to_kitti_camera(gt_boxes_copy, calib)
+        gt_boxes_img = box_utils.boxes3d_kitti_camera_to_imageboxes(
+            gt_boxes_camera, calib, image_shape=self.get_image_shape(sample_idx)
+        )
+
+        # Calculate occluded levels for testing
+        occluded_list = []
+        for obj in obj_list:
+            if obj['points_count'] < 5:
+                occluded_list.append(3) # unknown
+            elif obj['points_count'] < 15:
+                occluded_list.append(2) # largely occluded
+            elif obj['points_count'] < 30:
+                occluded_list.append(1) # partly occluded
+            else:
+                occluded_list.append(0) # fully visible
+        annotations['occluded'] = np.array(occluded_list)
+
         # Currently unused for CADC, and don't make too much since as we primarily use 360 degree 3d LIDAR boxes.
         annotations['score'] = np.array([1 for _ in obj_list])
         annotations['difficulty'] = np.array([0 for obj in obj_list], np.int32)
         annotations['truncated'] = np.array([0 for _ in obj_list])
-        annotations['occluded'] = np.array([0 for _ in obj_list])
         annotations['alpha'] = np.array([-np.arctan2(-gt_boxes_lidar[i][1], gt_boxes_lidar[i][0]) + gt_boxes_camera[i][6] for i in range(len(obj_list))]) 
-        annotations['bbox'] = gt_boxes_camera
+        annotations['bbox'] = gt_boxes_img
         
         return annotations
     
@@ -330,15 +349,15 @@ class CadcDataset(DatasetTemplate):
             pred_scores = box_dict['pred_scores'].cpu().numpy()
             pred_boxes = box_dict['pred_boxes'].cpu().numpy()
             pred_labels = box_dict['pred_labels'].cpu().numpy()
-
-            calib = batch_dict['calib'][batch_index]
-            image_shape = batch_dict['image_shape'][batch_index]
-            pred_boxes_camera = box_utils.boxes3d_lidar_to_kitti_camera(pred_boxes, calib)
-
             pred_dict = get_template_prediction(pred_scores.shape[0])
             if pred_scores.shape[0] == 0:
                 return pred_dict
 
+            calib = batch_dict['calib'][batch_index]
+            image_shape = batch_dict['image_shape'][batch_index]
+            # Should not be modifying the original lidar positions
+            pred_boxes_copy = copy.deepcopy(pred_boxes)
+            pred_boxes_camera = box_utils.boxes3d_lidar_to_kitti_camera(pred_boxes_copy, calib)
             pred_boxes_img = box_utils.boxes3d_kitti_camera_to_imageboxes(
                 pred_boxes_camera, calib, image_shape=image_shape
             )
@@ -356,7 +375,6 @@ class CadcDataset(DatasetTemplate):
 
         annos = []
         for index, box_dict in enumerate(pred_dicts):
-            # frame_id = batch_dict['frame_id'][index]
             frame_id = batch_dict['sample_idx'][index]
 
             single_pred_dict = generate_single_sample_dict(index, box_dict)
@@ -408,9 +426,6 @@ class CadcDataset(DatasetTemplate):
 
         for i in range(len(eval_det_annos)):
             boxes3d_lidar = np.array(eval_det_annos[i]['boxes_lidar'])
-            # Seems like the lidar location is wrt the center of (x,y) axis and bottom of z-axis
-            # Adding h/2 to it so that it's wrt to the center of z-axis, like the gt box
-            boxes3d_lidar[:, 2] += boxes3d_lidar[:, 5] / 2
             boxes3d_lidar = boxes3d_lidar[:,[1,0,2,3,4,5,6]]
             boxes3d_lidar[:,0] *= -1
             eval_det_annos[i]['location'] = boxes3d_lidar[:,:3]
@@ -430,7 +445,7 @@ class CadcDataset(DatasetTemplate):
         return len(self.cadc_infos)
 
     def __getitem__(self, index):
-        # index = 4
+        self.start_time = time.time()
         info = copy.deepcopy(self.cadc_infos[index])
 
         sample_idx = info['point_cloud']['lidar_idx']
@@ -452,20 +467,25 @@ class CadcDataset(DatasetTemplate):
 
         if 'annos' in info:
             annos = info['annos']
-            #annos = common_utils.drop_info_with_name(annos, name='DontCare')
-            loc, dims, rots = annos['location'], annos['dimensions'], annos['rotation_y']
-            gt_names = annos['name']
-            bbox = annos['bbox']
-            gt_boxes_camera = np.concatenate([loc, dims, rots[..., np.newaxis]], axis=1).astype(np.float32)
-            if 'gt_boxes_lidar' in annos:
-                gt_boxes_lidar = annos['gt_boxes_lidar']
+
+            # Create mask to filter annotations during training
+            if self.training and self.dataset_cfg.get('FILTER_MIN_POINTS_IN_GT', False):
+                mask = (annos['num_points_in_gt'] > self.dataset_cfg.FILTER_MIN_POINTS_IN_GT - 1)
             else:
+                mask = None
+
+            gt_names = annos['name'] if mask is None else annos['name'][mask]
+            if 'gt_boxes_lidar' in annos:
+                gt_boxes_lidar = annos['gt_boxes_lidar'] if mask is None else annos['gt_boxes_lidar'][mask]
+            else:
+                # This should not run, although the code should look somewhat like this
+                raise NotImplementedError
+                loc, dims, rots = annos['location'], annos['dimensions'], annos['rotation_y']
+                gt_boxes_camera = np.concatenate([loc, dims, rots[..., np.newaxis]], axis=1).astype(np.float32)
                 gt_boxes_lidar = box_utils.boxes3d_kitti_camera_to_lidar(gt_boxes_camera, calib)
 
             input_dict.update({
-                # 'gt_boxes': gt_boxes_camera,
                 'gt_names': gt_names,
-                # 'gt_box2d': bbox,
                 'gt_boxes': gt_boxes_lidar
             })
 
@@ -474,7 +494,7 @@ class CadcDataset(DatasetTemplate):
         data_dict['image_shape'] = img_shape
         return data_dict 
 
-def create_cadc_infos(dataset_cfg, class_names, data_path, save_path, workers=4):
+def create_cadc_infos(dataset_cfg, class_names, data_path, save_path, workers=8):
     dataset = CadcDataset(dataset_cfg=dataset_cfg, class_names=class_names, root_path=data_path, training=False)
     train_split, val_split = 'train', 'val'
 
@@ -525,5 +545,5 @@ if __name__ == '__main__':
             dataset_cfg=dataset_cfg,
             class_names=['Car', 'Pedestrian', 'Pickup_Truck'],
             data_path=ROOT_DIR / 'data' / 'cadc',
-            save_path=ROOT_DIR / 'data' / 'cadc'
+            save_path=Path(dataset_cfg.DATA_PATH)
         )

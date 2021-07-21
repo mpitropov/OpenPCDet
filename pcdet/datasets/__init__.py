@@ -6,9 +6,14 @@ from pcdet.utils import common_utils
 
 from .dataset import DatasetTemplate
 from .kitti.kitti_dataset import KittiDataset
+from .kitti.kitti_tracking_dataset import KittiTrackingDataset
 from .kitti.kitti_dataset_var import KittiDatasetVAR
+from .kitti.kitti_tracking_dataset_var import KittiTrackingDatasetVAR
 from .kitti.kitti_dataset_mimo_var import KittiDatasetMIMOVAR
-from .kitti.kitti_dataset_mimo_var2 import KittiDatasetMIMOVAR2
+from .kitti.kitti_dataset_mimo_var_a import KittiDatasetMIMOVARA
+from .kitti.kitti_dataset_mimo_var_b import KittiDatasetMIMOVARB
+from .kitti.kitti_dataset_mimo_var_c import KittiDatasetMIMOVARC
+from .kitti.kitti_tracking_dataset_mimo_var2 import KittiTrackingDatasetMIMOVAR2
 from .nuscenes.nuscenes_dataset import NuScenesDataset
 from .nuscenes.nuscenes_dataset_var import NuScenesDatasetVAR
 from .waymo.waymo_dataset import WaymoDataset
@@ -18,9 +23,15 @@ from .cadc.cadc_dataset_var import CadcDatasetVAR
 __all__ = {
     'DatasetTemplate': DatasetTemplate,
     'KittiDataset': KittiDataset,
+    'KittiTrackingDataset': KittiTrackingDataset,
     'KittiDatasetVAR': KittiDatasetVAR,
+    'KittiTrackingDatasetVAR': KittiTrackingDatasetVAR,
+    'KittiTrackingDatasetVAR': KittiTrackingDatasetVAR,
     'KittiDatasetMIMOVAR': KittiDatasetMIMOVAR,
-    'KittiDatasetMIMOVAR2': KittiDatasetMIMOVAR2,
+    'KittiDatasetMIMOVARA': KittiDatasetMIMOVARA,
+    'KittiDatasetMIMOVARB': KittiDatasetMIMOVARB,
+    'KittiDatasetMIMOVARC': KittiDatasetMIMOVARC,
+    'KittiTrackingDatasetMIMOVAR2': KittiTrackingDatasetMIMOVAR2,
     'NuScenesDataset': NuScenesDataset,
     'NuScenesDatasetVAR': NuScenesDatasetVAR,
     'WaymoDataset': WaymoDataset,

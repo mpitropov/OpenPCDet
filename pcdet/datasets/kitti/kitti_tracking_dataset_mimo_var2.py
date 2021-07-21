@@ -6,13 +6,13 @@ from numpy.core.fromnumeric import repeat
 from random import random
 
 from ...utils import box_utils, common_utils
-from .kitti_dataset_var import KittiDatasetVAR
+from .kitti_tracking_dataset_var import KittiTrackingDatasetVAR
 from ..dataset import DatasetTemplate
 from ..processor.data_processor import DataProcessor
 
 import time
 
-class KittiDatasetMIMOVAR2(DatasetTemplate):
+class KittiTrackingDatasetMIMOVAR2(DatasetTemplate):
     def __init__(self, dataset_cfg, class_names, training=True, root_path=None, logger=None):
         """
         Args:
@@ -33,7 +33,7 @@ class KittiDatasetMIMOVAR2(DatasetTemplate):
 
         self.rng = np.random.default_rng()
 
-        self.kitti_dataset = KittiDatasetVAR(
+        self.kitti_dataset = KittiTrackingDatasetVAR(
             dataset_cfg=dataset_cfg,
             class_names=class_names,
             root_path=root_path,
@@ -53,12 +53,11 @@ class KittiDatasetMIMOVAR2(DatasetTemplate):
             index = index % len(self.kitti_dataset.kitti_infos)
 
         info = copy.deepcopy(self.kitti_dataset.kitti_infos[index])
-        sample_idx = info['point_cloud']['lidar_idx']
 
-        points = self.kitti_dataset.get_lidar(sample_idx)
-        calib = self.kitti_dataset.get_calib(sample_idx)
+        points = self.kitti_dataset.get_lidar(index)
+        calib = self.kitti_dataset.get_calib(index)
 
-        img_shape = info['image']['image_shape']
+        img_shape = self.kitti_dataset.get_image_shape(index)
         if self.kitti_dataset.dataset_cfg.FOV_POINTS_ONLY:
             pts_rect = calib.lidar_to_rect(points[:, 0:3])
             fov_flag = self.kitti_dataset.get_fov_flag(pts_rect, img_shape, calib)
@@ -77,7 +76,8 @@ class KittiDatasetMIMOVAR2(DatasetTemplate):
 
         input_dict = {
             'points': points,
-            'frame_id': sample_idx,
+            'seq_id': info['seq'],
+            'frame_id': info['frame'],
             'calib': calib,
         }
 

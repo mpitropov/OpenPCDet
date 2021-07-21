@@ -68,7 +68,7 @@ class AnchorHeadSingleVAR(AnchorHeadSingle):
         else:
             dir_cls_preds = None
 
-        FORCE_OUTPUT_ANCHOR_LABELS = True # Used in uncertainty evaluation
+        FORCE_OUTPUT_ANCHOR_LABELS = False # Used in uncertainty evaluation
         if self.training or FORCE_OUTPUT_ANCHOR_LABELS:
             targets_dict = self.assign_targets(
                 gt_boxes=data_dict['gt_boxes']
@@ -87,7 +87,8 @@ class AnchorHeadSingleVAR(AnchorHeadSingle):
             data_dict['batch_box_preds'] = batch_box_preds
             data_dict['batch_var_preds'] = batch_var_preds
             data_dict['cls_preds_normalized'] = False
-            data_dict['batch_cls_targets'] = self.forward_ret_dict['box_cls_labels']
+            if FORCE_OUTPUT_ANCHOR_LABELS:
+                data_dict['batch_cls_targets'] = self.forward_ret_dict['box_cls_labels']
         return data_dict
 
     def get_cls_layer_loss(self):

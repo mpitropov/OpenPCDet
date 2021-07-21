@@ -301,6 +301,7 @@ class PointPillarMIMOVAR(PointPillar):
                 assert batch_dict['batch_box_preds'].shape.__len__() == 3
                 batch_mask = index
             box_preds = batch_dict['batch_box_preds'][batch_mask]
+            var_preds = batch_dict['batch_var_preds'][batch_mask]
             src_box_preds = box_preds
 
             if not isinstance(batch_dict['batch_cls_preds'], list):
@@ -332,9 +333,6 @@ class PointPillarMIMOVAR(PointPillar):
                         clf_loss_name == 'SoftmaxFocalLossV2':
                         # TODO: Implement for multi head
                         raise NotImplementedError
-
-            var_preds = batch_dict['batch_var_preds'][batch_mask]
-            var_preds = torch.exp(var_preds)
 
             if post_process_cfg.NMS_CONFIG.MULTI_CLASSES_NMS:
                 if not isinstance(cls_preds, list):

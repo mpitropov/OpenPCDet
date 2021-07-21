@@ -11,6 +11,7 @@ docker build . \
     --build-arg NUSC_ROOT=${NUSC_ROOT} \
     --build-arg CADC_ROOT=${CADC_ROOT} \
     --build-arg KITTI_ROOT=${KITTI_ROOT} \
+    --build-arg KITTI_TRACKING_ROOT=${KITTI_TRACKING_ROOT} \
     --build-arg EVAL_ROOT=${EVAL_ROOT} \
     --build-arg LOGDIR=${LOGDIR} \
     -t pcdet-standalone
