@@ -65,7 +65,7 @@ class KittiDatasetMIMOVARA(DatasetTemplate):
             points = points[fov_flag]
 
         # Voxelize pointcloud with different head ids together for speed up
-        if not self.training or True:
+        if not self.training:
             point_cloud_list = []
             for head_id in range(self.NUM_HEADS):
                 # Add the head id as extra column to points
