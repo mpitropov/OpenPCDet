@@ -3,7 +3,7 @@ CLASS_NAMES: ['Car', 'Pedestrian', 'Pickup_Truck']
 DATA_CONFIG: 
     _BASE_CONFIG_: cfgs/dataset_configs/cadc_dataset.yaml
     DATASET: 'CadcDatasetVAR'
-    POINT_CLOUD_RANGE: [-50, -50, -3, 50, 50, 3]
+    POINT_CLOUD_RANGE: [-51.2, -51.2, -3, 51.2, 51.2, 3]
     DATA_PROCESSOR:
         - NAME: mask_points_and_boxes_outside_range
           REMOVE_OUTSIDE_BOXES: True
@@ -95,7 +95,7 @@ MODEL:
             BOX_CODER: ResidualCoder
 
         LOSS_CONFIG:
-            CLF_LOSS_TYPE: SoftmaxFocalLossV1
+            CLF_LOSS_TYPE: SoftmaxFocalLossV2
             REG_LOSS_TYPE: VarRegLoss
             LOSS_WEIGHTS: {
                 'cls_weight': 1.0,
@@ -103,7 +103,7 @@ MODEL:
                 'dir_weight': 0.2,
                 'code_weights': [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0],
                 'loc_l1_weight': 1.0,
-                'loc_var_weight': 0.5
+                'loc_var_weight': 0.0
             }
 
     POST_PROCESSING:

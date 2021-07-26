@@ -1,3 +1,4 @@
+import copy
 import numpy as np
 
 from ...utils import box_utils

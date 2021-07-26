@@ -4,6 +4,7 @@ import pickle
 import copy
 import numpy as np
 import json
+import math
 from skimage import io
 from pathlib import Path
 import torch
@@ -190,16 +191,20 @@ class CadcDataset(DatasetTemplate):
         )
 
         # Calculate occluded levels for testing
+        point_levels = [15, 5, 1]
+        dist_levels = [30.0, 50.0, 75.0] # 75.0 will cover max diagonal distance
         occluded_list = []
         for obj in obj_list:
-            if obj['points_count'] < 5:
-                occluded_list.append(3) # unknown
-            elif obj['points_count'] < 15:
-                occluded_list.append(2) # largely occluded
-            elif obj['points_count'] < 30:
-                occluded_list.append(1) # partly occluded
-            else:
+            dist_to_obj = math.sqrt(obj['position']['x']**2 + obj['position']['y']**2)
+            if obj['points_count'] >= point_levels[0] and dist_to_obj <= dist_levels[0]:
                 occluded_list.append(0) # fully visible
+            elif obj['points_count'] >= point_levels[1] and dist_to_obj <= dist_levels[1]:
+                occluded_list.append(1) # partly occluded
+            elif obj['points_count'] >= point_levels[2] and dist_to_obj <= dist_levels[2]:
+                occluded_list.append(2) # largely occluded
+            else:
+                occluded_list.append(3) # unknown
+
         annotations['occluded'] = np.array(occluded_list)
 
         # Currently unused for CADC, and don't make too much since as we primarily use 360 degree 3d LIDAR boxes.
