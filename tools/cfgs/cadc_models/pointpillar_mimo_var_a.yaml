@@ -19,10 +19,10 @@ DATA_CONFIG:
 
         - NAME: transform_points_to_voxels
           VOXEL_SIZE: [0.2, 0.2, 6]
-          MAX_POINTS_PER_VOXEL: 20
+          MAX_POINTS_PER_VOXEL: 32
           NUM_HEADS: 2 # Located in 3 places
           MAX_NUMBER_OF_VOXELS: {
-            'train': 30000,
+            'train': 16000,
             'test': 40000
           }
     POINT_FEATURE_ENCODING: { # Additional head_id feature
