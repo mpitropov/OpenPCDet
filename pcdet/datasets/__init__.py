@@ -19,6 +19,7 @@ from .nuscenes.nuscenes_dataset_var import NuScenesDatasetVAR
 from .waymo.waymo_dataset import WaymoDataset
 from .cadc.cadc_dataset import CadcDataset
 from .cadc.cadc_dataset_var import CadcDatasetVAR
+from .cadc.cadc_dataset_mimo_var_a import CadcDatasetMIMOVARA
 
 __all__ = {
     'DatasetTemplate': DatasetTemplate,
@@ -36,7 +37,8 @@ __all__ = {
     'NuScenesDatasetVAR': NuScenesDatasetVAR,
     'WaymoDataset': WaymoDataset,
     'CadcDataset': CadcDataset,
-    'CadcDatasetVAR': CadcDatasetVAR
+    'CadcDatasetVAR': CadcDatasetVAR,
+    'CadcDatasetMIMOVARA': CadcDatasetMIMOVARA
 }
 
 

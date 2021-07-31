@@ -14,7 +14,7 @@ DATA_CONFIG:
         - NAME: shuffle_points
           SHUFFLE_ENABLED: {
             'train': True,
-            'test': True
+            'test': True # This must be set True for MIMO Type A
           }
 
         - NAME: transform_points_to_voxels
