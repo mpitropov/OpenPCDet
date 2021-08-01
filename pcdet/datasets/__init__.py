@@ -21,6 +21,7 @@ from .cadc.cadc_dataset import CadcDataset
 from .cadc.cadc_dataset_var import CadcDatasetVAR
 from .cadc.cadc_dataset_mimo_var_a import CadcDatasetMIMOVARA
 from .cadc.cadc_dataset_mimo_var_b import CadcDatasetMIMOVARB
+from .cadc.cadc_dataset_mimo_var_c import CadcDatasetMIMOVARC
 
 __all__ = {
     'DatasetTemplate': DatasetTemplate,
@@ -40,7 +41,8 @@ __all__ = {
     'CadcDataset': CadcDataset,
     'CadcDatasetVAR': CadcDatasetVAR,
     'CadcDatasetMIMOVARA': CadcDatasetMIMOVARA,
-    'CadcDatasetMIMOVARB': CadcDatasetMIMOVARB
+    'CadcDatasetMIMOVARB': CadcDatasetMIMOVARB,
+    'CadcDatasetMIMOVARC': CadcDatasetMIMOVARC
 }
 
 
