@@ -3,11 +3,11 @@ import numpy as np
 from collections import defaultdict
 
 from ...utils import box_utils, common_utils, mimo_utils
-from .kitti_dataset_var import KittiDatasetVAR
+from .cadc_dataset_var import CadcDatasetVAR
 from ..dataset import DatasetTemplate
 from ..processor.data_processor import DataProcessor
 
-class KittiDatasetMIMOVARB(DatasetTemplate):
+class CadcDatasetMIMOVARB(DatasetTemplate):
     def __init__(self, dataset_cfg, class_names, training=True, root_path=None, logger=None):
         """
         Args:
@@ -28,7 +28,7 @@ class KittiDatasetMIMOVARB(DatasetTemplate):
 
         self.rng = np.random.default_rng()
 
-        self.kitti_dataset = KittiDatasetVAR(
+        self.cadc_dataset = CadcDatasetVAR(
             dataset_cfg=dataset_cfg,
             class_names=class_names,
             root_path=root_path,
@@ -49,51 +49,60 @@ class KittiDatasetMIMOVARB(DatasetTemplate):
             data_processor_cfg_shffl_voxelize, point_cloud_range=self.point_cloud_range, training=self.training
         )
 
+        self.time_list = []
+        self.frame_count = 0
+
     def __len__(self):
-        return len(self.kitti_dataset)
+        return len(self.cadc_dataset)
 
     def __getitem__(self, index):
         self.start_time = time.time()
-        if self.kitti_dataset._merge_all_iters_to_one_epoch:
-            index = index % len(self.kitti_dataset.kitti_infos)
+        info = copy.deepcopy(self.cadc_dataset.cadc_infos[index])
 
-        info = copy.deepcopy(self.kitti_dataset.kitti_infos[index])
         sample_idx = info['point_cloud']['lidar_idx']
 
-        points = self.kitti_dataset.get_lidar(sample_idx)
-        calib = self.kitti_dataset.get_calib(sample_idx)
+        points = self.cadc_dataset.get_lidar(sample_idx)
+        calib = self.cadc_dataset.get_calib(sample_idx)
 
         img_shape = info['image']['image_shape']
-        if self.kitti_dataset.dataset_cfg.FOV_POINTS_ONLY:
+        if self.cadc_dataset.dataset_cfg.FOV_POINTS_ONLY:
             pts_rect = calib.lidar_to_rect(points[:, 0:3])
-            fov_flag = self.kitti_dataset.get_fov_flag(pts_rect, img_shape, calib)
+            fov_flag = self.get_fov_flag(pts_rect, img_shape, calib)
             points = points[fov_flag]
 
         input_dict = {
             'points': points,
-            'frame_id': sample_idx,
+            'sample_idx': sample_idx,
             'calib': calib,
         }
 
         if 'annos' in info:
             annos = info['annos']
-            annos = common_utils.drop_info_with_name(annos, name='DontCare')
-            loc, dims, rots = annos['location'], annos['dimensions'], annos['rotation_y']
-            gt_names = annos['name']
-            gt_boxes_camera = np.concatenate([loc, dims, rots[..., np.newaxis]], axis=1).astype(np.float32)
-            gt_boxes_lidar = box_utils.boxes3d_kitti_camera_to_lidar(gt_boxes_camera, calib)
+
+            # Create mask to filter annotations during training
+            if self.training and self.dataset_cfg.get('FILTER_MIN_POINTS_IN_GT', False):
+                mask = (annos['num_points_in_gt'] > self.dataset_cfg.FILTER_MIN_POINTS_IN_GT - 1)
+            else:
+                mask = None
+
+            gt_names = annos['name'] if mask is None else annos['name'][mask]
+            if 'gt_boxes_lidar' in annos:
+                gt_boxes_lidar = annos['gt_boxes_lidar'] if mask is None else annos['gt_boxes_lidar'][mask]
+            else:
+                # This should not run, although the code should look somewhat like this
+                raise NotImplementedError
+                loc, dims, rots = annos['location'], annos['dimensions'], annos['rotation_y']
+                gt_boxes_camera = np.concatenate([loc, dims, rots[..., np.newaxis]], axis=1).astype(np.float32)
+                gt_boxes_lidar = box_utils.boxes3d_kitti_camera_to_lidar(gt_boxes_camera, calib)
 
             input_dict.update({
                 'gt_names': gt_names,
                 'gt_boxes': gt_boxes_lidar
             })
-            road_plane = self.kitti_dataset.get_road_plane(sample_idx)
-            if road_plane is not None:
-                input_dict['road_plane'] = road_plane
 
         # Custom prepare data function
         # Which masks points but only performs shuffle & voxelize during testing
-        data_dict = mimo_utils.prepare_data_b(self, data_dict=input_dict, head_dataset=self.kitti_dataset)
+        data_dict = mimo_utils.prepare_data_b(self, data_dict=input_dict, head_dataset=self.cadc_dataset)
 
         data_dict['image_shape'] = img_shape
         return data_dict
@@ -178,12 +187,12 @@ class KittiDatasetMIMOVARB(DatasetTemplate):
 
         """
         FRAME_NUM = 0 # Must have eval set to batch size of 1
-        ret_dict = self.kitti_dataset.generate_prediction_dicts(batch_dict, pred_dicts, class_names, output_path)
+        ret_dict = self.cadc_dataset.generate_prediction_dicts(batch_dict, pred_dicts, class_names, output_path)
 
         # Generate prediction dicts for each head
         ret_dict_list = []
         for i in range(self.NUM_HEADS):
-            ret_dict_list.append(self.kitti_dataset.generate_prediction_dicts( \
+            ret_dict_list.append(self.cadc_dataset.generate_prediction_dicts( \
                 batch_dict, pred_dicts[FRAME_NUM]['pred_dicts_list'][i], class_names, output_path)[FRAME_NUM])
         ret_dict[FRAME_NUM]['post_nms_head_outputs'] = ret_dict_list
 
@@ -191,4 +200,4 @@ class KittiDatasetMIMOVARB(DatasetTemplate):
 
     # Must also use this method from one of our heads
     def evaluation(self, det_annos, class_names, **kwargs):
-        return self.kitti_dataset.evaluation(det_annos, class_names, **kwargs)
+        return self.cadc_dataset.evaluation(det_annos, class_names, **kwargs)

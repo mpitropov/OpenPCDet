@@ -21,6 +21,8 @@ DATA_CONFIG:
           VOXEL_SIZE: [0.2, 0.2, 6]
           MAX_POINTS_PER_VOXEL: 32
           NUM_HEADS: 2 # Located in 3 places
+          MULTIPLY_POINTS_DURING_TRAINING: False # During training only one point cloud is voxelized
+          MULTIPLY_POINTS_DURING_TESTING: True # Point clouds are combined during testing, then voxelized
           MAX_NUMBER_OF_VOXELS: {
             'train': 16000,
             'test': 40000

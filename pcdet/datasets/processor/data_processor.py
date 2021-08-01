@@ -47,10 +47,16 @@ class DataProcessor(object):
             except:
                 from spconv.utils import VoxelGenerator
 
-            if not self.training and hasattr(config, 'NUM_HEADS'):
-                max_points_per_voxel = config.MAX_POINTS_PER_VOXEL * config.NUM_HEADS
-            else:
-                max_points_per_voxel = config.MAX_POINTS_PER_VOXEL
+            max_points_per_voxel = config.MAX_POINTS_PER_VOXEL
+
+            # MIMO type A and B require increased points per voxel in certain cases
+            if hasattr(config, 'NUM_HEADS'):
+                # MIMO type B combines point clouds before voxelization during training
+                if self.training and config.MULTIPLY_POINTS_DURING_TRAINING:
+                    max_points_per_voxel = config.MAX_POINTS_PER_VOXEL * config.NUM_HEADS
+                # MIMO type A combines point clouds before voxelization during testing
+                elif not self.training and config.MULTIPLY_POINTS_DURING_TESTING:
+                    max_points_per_voxel = config.MAX_POINTS_PER_VOXEL * config.NUM_HEADS
 
             voxel_generator = VoxelGenerator(
                 voxel_size=config.VOXEL_SIZE,

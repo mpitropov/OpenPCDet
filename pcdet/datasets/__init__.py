@@ -20,6 +20,7 @@ from .waymo.waymo_dataset import WaymoDataset
 from .cadc.cadc_dataset import CadcDataset
 from .cadc.cadc_dataset_var import CadcDatasetVAR
 from .cadc.cadc_dataset_mimo_var_a import CadcDatasetMIMOVARA
+from .cadc.cadc_dataset_mimo_var_b import CadcDatasetMIMOVARB
 
 __all__ = {
     'DatasetTemplate': DatasetTemplate,
@@ -28,7 +29,7 @@ __all__ = {
     'KittiDatasetVAR': KittiDatasetVAR,
     'KittiTrackingDatasetVAR': KittiTrackingDatasetVAR,
     'KittiTrackingDatasetVAR': KittiTrackingDatasetVAR,
-    'KittiDatasetMIMOVAR': KittiDatasetMIMOVAR,
+    'KittiDatasetMIMOVAR': KittiDatasetMIMOVAR, # This version is deprecated
     'KittiDatasetMIMOVARA': KittiDatasetMIMOVARA,
     'KittiDatasetMIMOVARB': KittiDatasetMIMOVARB,
     'KittiDatasetMIMOVARC': KittiDatasetMIMOVARC,
@@ -38,7 +39,8 @@ __all__ = {
     'WaymoDataset': WaymoDataset,
     'CadcDataset': CadcDataset,
     'CadcDatasetVAR': CadcDatasetVAR,
-    'CadcDatasetMIMOVARA': CadcDatasetMIMOVARA
+    'CadcDatasetMIMOVARA': CadcDatasetMIMOVARA,
+    'CadcDatasetMIMOVARB': CadcDatasetMIMOVARB
 }
 
 
