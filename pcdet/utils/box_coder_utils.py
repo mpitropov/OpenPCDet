@@ -89,7 +89,7 @@ class ResidualCoder(object):
         xa, ya, za, dxa, dya, dza, ra, *cas = torch.split(anchors, 1, dim=-1)
         xg, yg, zg, dxg, dyg, dzg, rg, *cgs = torch.split(boxes, 1, dim=-1)
         # Split to each encoded log variance
-        xt_lv, yt_lv, zt_vl, dxt_lv, dyt_lv, dzt_lv, rt_lv = \
+        xt_lv, yt_lv, zt_vl, dxt_lv, dyt_lv, dzt_lv, rt_lv, *cts_lv = \
             torch.split(log_var_encodings, 1, dim=-1)
 
         # Decode variance of x, y and z
@@ -107,7 +107,8 @@ class ResidualCoder(object):
         # Decode variance of yaw
         r_v = torch.exp(rt_lv)
 
-        return torch.cat([x_v, y_v, z_v, dx_v, dy_v, dz_v, r_v], dim=-1)
+        cts_v = [torch.exp(t) for t in cts_lv] # Exponentiate vx, vy for NuScenes
+        return torch.cat([x_v, y_v, z_v, dx_v, dy_v, dz_v, r_v, *cts_v], dim=-1)
 
 class PreviousResidualDecoder(object):
     def __init__(self, code_size=7, **kwargs):
