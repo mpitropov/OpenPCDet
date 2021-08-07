@@ -4,12 +4,14 @@ from .point_rcnn import PointRCNN
 from .pointpillar import PointPillar
 from .pv_rcnn import PVRCNN
 from .second_net import SECONDNet
+from .second_net_var import SECONDNetVAR
 from .pointpillar_var import PointPillarVAR
 from .pointpillar_mimo_var import PointPillarMIMOVAR
 
 __all__ = {
     'Detector3DTemplate': Detector3DTemplate,
     'SECONDNet': SECONDNet,
+    'SECONDNetVAR': SECONDNetVAR,
     'PartA2Net': PartA2Net,
     'PVRCNN': PVRCNN,
     'PointPillar': PointPillar,
