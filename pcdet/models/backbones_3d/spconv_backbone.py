@@ -2,6 +2,7 @@ from functools import partial
 
 import spconv
 import torch.nn as nn
+from torch.nn.modules import module
 
 
 def post_act_block(in_channels, out_channels, kernel_size, indice_key=None, stride=1, padding=0,
@@ -129,6 +130,11 @@ class VoxelBackBone8x(nn.Module):
         """
         voxel_features, voxel_coords = batch_dict['voxel_features'], batch_dict['voxel_coords']
         batch_size = batch_dict['batch_size']
+
+        # Divide batch size for MIMO A and B
+        if hasattr(self.model_cfg, 'NUM_HEADS'):
+            batch_size = int(batch_size / self.model_cfg.NUM_HEADS)
+
         input_sp_tensor = spconv.SparseConvTensor(
             features=voxel_features,
             indices=voxel_coords.int(),

@@ -2,7 +2,7 @@ import copy, time
 import numpy as np
 from collections import defaultdict
 
-from ...utils import box_utils, common_utils
+from ...utils import box_utils, common_utils, mimo_utils
 from .kitti_dataset_var import KittiDatasetVAR
 from ..dataset import DatasetTemplate
 
@@ -91,147 +91,9 @@ class KittiDatasetMIMOVARA(DatasetTemplate):
             if road_plane is not None:
                 input_dict['road_plane'] = road_plane
 
-        # Custom prepare data function
-        # Which also takes in the dataset as input
-        data_dict = self.prepare_data(data_dict=input_dict,
-                                        head_dataset=self.kitti_dataset)
+        data_dict = self.kitti_dataset.prepare_data(data_dict=input_dict)
+
         data_dict['image_shape'] = img_shape
-        return data_dict
-
-    def prepare_data(self, data_dict, head_dataset):
-        """
-        Args:
-            data_dict:
-                points: (N, 3 + C_in)
-                gt_boxes: optional, (N, 7 + C) [x, y, z, dx, dy, dz, heading, ...]
-                gt_names: optional, (N), string
-                ...
-
-        Returns:
-            data_dict:
-                frame_id: string
-                points: (N, 3 + C_in)
-                gt_boxes: optional, (N, 7 + C) [x, y, z, dx, dy, dz, heading, ...]
-                gt_names: optional, (N), string
-                use_lead_xyz: bool
-                voxels: optional (num_voxels, max_points_per_voxel, 3 + C)
-                voxel_coords: optional (num_voxels, 3)
-                voxel_num_points: optional (num_voxels)
-                ...
-        """
-        if head_dataset.training:
-            assert 'gt_boxes' in data_dict, 'gt_boxes should be provided for training'
-            gt_boxes_mask = np.array([n in head_dataset.class_names for n in data_dict['gt_names']], dtype=np.bool_)
-
-            data_dict = head_dataset.data_augmentor.forward(
-                data_dict={
-                    **data_dict,
-                    'gt_boxes_mask': gt_boxes_mask
-                }
-            )
-
-        if data_dict.get('gt_boxes', None) is not None:
-            selected = common_utils.keep_arrays_by_name(data_dict['gt_names'], head_dataset.class_names)
-            data_dict['gt_boxes'] = data_dict['gt_boxes'][selected]
-            data_dict['gt_names'] = data_dict['gt_names'][selected]
-            gt_classes = np.array([head_dataset.class_names.index(n) + 1 for n in data_dict['gt_names']], dtype=np.int32)
-            gt_boxes = np.concatenate((data_dict['gt_boxes'], gt_classes.reshape(-1, 1).astype(np.float32)), axis=1)
-            data_dict['gt_boxes'] = gt_boxes
-
-        data_dict = head_dataset.point_feature_encoder.forward(data_dict)
-
-        data_dict = head_dataset.data_processor.forward(
-            data_dict=data_dict
-        )
-
-        if self.training and len(data_dict['gt_boxes']) == 0:
-            new_index = np.random.randint(head_dataset.__len__())
-            return head_dataset.__getitem__(new_index)
-
-        data_dict.pop('gt_names', None)
-
-        return data_dict
-
-    # During training the voxelized point clouds are combined together
-    def modify_batch(self, batch_list):
-        data_dict = defaultdict(list)
-        batch_size = len(batch_list)
-        batch_repetitions = 1
-        if self.training:
-            batch_repetitions = self.BATCH_REPETITION
-        main_shuffle = np.tile( np.arange(batch_size), batch_repetitions)
-        self.rng.shuffle(main_shuffle)
-        to_shuffle = int(len(main_shuffle) * (1. - self.INPUT_REPETITION) )
-
-        # Each row contains a different grouping of frames
-        # Each column is a different detection head
-        frame_list = []
-        for i in range(self.NUM_HEADS):
-            rand_portion = copy.deepcopy(main_shuffle[:to_shuffle])
-            self.rng.shuffle(rand_portion)
-            frame_list.append(np.concatenate([rand_portion, main_shuffle[to_shuffle:]]))
-        frame_list = np.transpose(frame_list)
-
-        for frame_group_index in range(len(frame_list)):
-            # Store voxel information
-            voxel_coords = []
-            curr_voxel_index = 0
-            total_num_voxels = 0
-
-            # Loop through frames in this grouping
-            for head_id in range(self.NUM_HEADS):
-                batch_list_index = frame_list[frame_group_index][head_id]
-                # Add non voxel components
-                for key, val in batch_list[batch_list_index].items():
-                    if key in ['voxels', 'voxel_coords', 'voxel_num_points']:
-                        continue
-                    data_dict[key].append(val)
-                # Calculate total number of voxels
-                total_num_voxels += len(batch_list[batch_list_index]['voxel_coords'])
-
-            # Now that we know the number of voxels we can make a numpy array and store directly to it
-            voxels = np.zeros((total_num_voxels, self.MAX_POINTS_PER_VOXEL * self.NUM_HEADS, 5))
-            # Init to all zeros since currently we haven't added points yet
-            voxel_num_points = np.zeros(total_num_voxels, dtype=int)
-
-            # First loop over to calculate number of voxels and create voxel coords
-            # Create a dict with key=(x_coord,y_coord)
-            # voxel_coords_set = set()
-            voxel_coords_dict = {}
-            for head_id in range(self.NUM_HEADS):
-                batch_list_index = frame_list[frame_group_index][head_id]
-
-                for index, value in enumerate(batch_list[batch_list_index]['voxel_coords']):
-                    xy_key = (value[1], value[2]) # value is [z_coord, x_coord, y_coord]
-                    if xy_key not in voxel_coords_dict:
-                        # Add the key to the dict
-                        voxel_coords_dict[xy_key] = curr_voxel_index
-                        curr_voxel_index += 1
-                        # Append voxel coords
-                        voxel_coords.append(batch_list[batch_list_index]['voxel_coords'][index])
-
-                    # Add points to the voxel!
-                    voxel_index = voxel_coords_dict[xy_key]
-                    # Select only the valid points using number of points in voxel
-                    num_points = batch_list[batch_list_index]['voxel_num_points'][index]
-
-                    # Replace points from initial point to number of points to add
-                    curr_num_points_in_voxel = voxel_num_points[voxel_index]
-
-                    # Set first 4 columns to the points data
-                    voxels[voxel_index][curr_num_points_in_voxel:curr_num_points_in_voxel + num_points][:,0:4] = \
-                        batch_list[batch_list_index]['voxels'][index][:num_points]
-                    # Set 5th column to head id
-                    voxels[voxel_index][curr_num_points_in_voxel:curr_num_points_in_voxel + num_points][:,4] = head_id
-                    # We already have the coords added but we have to update the point count
-                    voxel_num_points[voxel_index] += num_points
-
-            # SNIP to reduce size
-            data_dict['voxels'].append(voxels[:curr_voxel_index])
-            data_dict['voxel_num_points'].append(voxel_num_points[:curr_voxel_index])
-            # Convert the other voxel information to np arrays
-            data_dict['voxel_coords'].append(np.array(voxel_coords))
-
         return data_dict
 
     # This collate_batch function is modified from the one in dataset.py
@@ -243,7 +105,7 @@ class KittiDatasetMIMOVARA(DatasetTemplate):
             batch_repetitions = self.BATCH_REPETITION
 
         if self.training:
-            data_dict = self.modify_batch(batch_list)
+            data_dict = mimo_utils.modify_batch_a(self, batch_list)
             # N * number of heads * batch repetition
             batch_size = len(batch_list) * self.NUM_HEADS * batch_repetitions
         else:
@@ -285,7 +147,6 @@ class KittiDatasetMIMOVARA(DatasetTemplate):
                 raise TypeError
 
         ret['batch_size'] = batch_size
-
 
         if not self.training:
             self.frame_count += 1

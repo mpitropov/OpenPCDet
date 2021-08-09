@@ -1,7 +1,7 @@
-from .pointpillar import PointPillar
+from .second_net import SECONDNet
 from ..model_utils import dataset_utils
 
-class PointPillarMIMOVAR(PointPillar):
+class SECONDNetMIMOVAR(SECONDNet):
     def __init__(self, model_cfg, num_class, dataset):
         super().__init__(model_cfg=model_cfg, num_class=num_class, dataset=dataset)
         self.NUM_HEADS = model_cfg.DENSE_HEAD.NUM_HEADS
