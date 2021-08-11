@@ -188,7 +188,7 @@ def post_processing_mimo(self, batch_dict):
                 'cls_preds_normalized': batch_dict['cls_preds_normalized_' + str(i)]
             })
 
-        tmp_pred_dicts, tmp_recall_dict = post_processing_var(batch_dict_list[i])
+        tmp_pred_dicts, tmp_recall_dict = post_processing_var(self, batch_dict_list[i])
         pred_dicts_list.append(tmp_pred_dicts)
         recall_dict_list.append(tmp_recall_dict)
 
@@ -239,7 +239,7 @@ def post_processing_mimo(self, batch_dict):
             # We can't add cls_preds_normalized since NMS doesn't return it
             'cls_preds_normalized': None
         }
-        pred_dicts, recall_dict = post_processing_var(batch_dict_extra_nms)
+        pred_dicts, recall_dict = post_processing_var(self, batch_dict_extra_nms)
         # Set all the detection head ids to 0, the "mean" head
         pred_dicts[0]['pred_head_ids'] = torch.zeros(len(pred_dicts[0]['pred_labels']))
         return pred_dicts, recall_dict
