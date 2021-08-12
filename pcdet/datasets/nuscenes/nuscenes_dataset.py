@@ -36,6 +36,18 @@ class NuScenesDataset(DatasetTemplate):
         self.infos.extend(nuscenes_infos)
         self.logger.info('Total samples for NuScenes dataset: %d' % (len(nuscenes_infos)))
 
+        # Return for yaml files without this attribute
+        if not hasattr(self.dataset_cfg, 'SAMPLED_INTERVAL'):
+            return
+
+        # Apply sample interval
+        if self.dataset_cfg.SAMPLED_INTERVAL[mode] > 1:
+            sampled_nuscenes_infos = []
+            for k in range(0, len(self.infos), self.dataset_cfg.SAMPLED_INTERVAL[mode]):
+                sampled_nuscenes_infos.append(self.infos[k])
+            self.infos = sampled_nuscenes_infos
+            self.logger.info('Total sampled samples for NuScenes dataset after sampling: %d' % len(self.infos))
+
     def balanced_infos_resampling(self, infos):
         """
         Class-balanced sampling of nuScenes dataset from https://arxiv.org/abs/1908.09492
