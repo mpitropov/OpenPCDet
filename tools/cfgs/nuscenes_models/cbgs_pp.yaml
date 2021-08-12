@@ -173,7 +173,8 @@ MODEL:
             MATCH_HEIGHT: False
             BOX_CODER: ResidualCoder
             BOX_CODER_CONFIG: {
-                'code_size': 8
+                'code_size': 9,
+                'encode_angle_by_sincos': False
             }
 
 
@@ -195,7 +196,7 @@ MODEL:
         EVAL_METRIC: kitti
 
         NMS_CONFIG:
-            MULTI_CLASSES_NMS: True
+            MULTI_CLASSES_NMS: False
             NMS_TYPE: nms_gpu
             NMS_THRESH: 0.2
             NMS_PRE_MAXSIZE: 1000
