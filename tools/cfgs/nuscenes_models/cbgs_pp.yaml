@@ -53,6 +53,7 @@ MODEL:
         NAME: AnchorHeadSingle
         CLASS_AGNOSTIC: False
 
+        USE_DIRECTION_CLASSIFIER: True
         DIR_OFFSET: 0.78539
         DIR_LIMIT_OFFSET: 0.0
         NUM_DIR_BINS: 2
@@ -159,11 +160,6 @@ MODEL:
                 'unmatched_threshold': 0.4
             },
         ]
-
-        SEPARATE_REG_CONFIG: 
-            NUM_MIDDLE_CONV: 1
-            NUM_MIDDLE_FILTER: 64
-            REG_LIST: ['reg:2', 'height:1', 'size:3', 'angle:2', 'velo:2']
 
         TARGET_ASSIGNER_CONFIG:
             NAME: AxisAlignedTargetAssigner

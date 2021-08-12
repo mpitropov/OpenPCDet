@@ -46,7 +46,7 @@ class NuScenesDataset(DatasetTemplate):
             for k in range(0, len(self.infos), self.dataset_cfg.SAMPLED_INTERVAL[mode]):
                 sampled_nuscenes_infos.append(self.infos[k])
             self.infos = sampled_nuscenes_infos
-            self.logger.info('Total sampled samples for NuScenes dataset after sampling: %d' % len(self.infos))
+            self.logger.info('Total sampled samples for NuScenes dataset: %d' % len(self.infos))
 
     def balanced_infos_resampling(self, infos):
         """
