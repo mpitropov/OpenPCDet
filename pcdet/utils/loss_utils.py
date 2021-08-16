@@ -341,6 +341,13 @@ class VarRegLoss(nn.Module):
         if code_weights is not None:
             self.code_weights = np.array(code_weights, dtype=np.float32)
             self.code_weights = torch.from_numpy(self.code_weights).cuda()
+            # Select all non angle variance variables
+            if len(code_weights) == 7:
+                self.linear_var_mask = [0,1,2,3,4,5]
+            elif len(code_weights) == 9: # NuScenes has velocities
+                self.linear_var_mask = [0,1,2,3,4,5,7,8]
+            else:
+                raise NotImplementedError
         self.l1_weight = l1_weight
         self.var_weight = var_weight
 
@@ -374,16 +381,16 @@ class VarRegLoss(nn.Module):
         anchors: torch.Tensor, box_coder, take_sin_diff: bool, weights: torch.Tensor):
         """
         Args:
-            reg_preds: (B, #anchors, 7) float tensor.
+            reg_preds: (B, #anchors, #codes) float tensor.
                 Predicted regression values for each anchor.
-            gt_targets: (B, #anchors, 7) float tensor.
+            gt_targets: (B, #anchors, #codes) float tensor.
                 Regression value targets.
-            var_preds: (B, #anchors, 7) float tensor.
+            var_preds: (B, #anchors, #codes) float tensor.
                 Predicted regression value log variances for each anchor.
 
         Returns:
-            loss: (B, #anchors, 7) float tensor.
-                loss for each anchor and 7 respective log variances
+            loss: (B, #anchors, #codes) float tensor.
+                loss for each anchor and their respective log variances
         """
         gt_targets = torch.where(torch.isnan(gt_targets), reg_preds, gt_targets)  # ignore nan targets
 
@@ -407,8 +414,9 @@ class VarRegLoss(nn.Module):
         var_preds = torch.clamp(var_preds, min=-10, max=10)
 
         loss_l1 = self.smooth_l1_loss(diff, self.beta)
-        loss_var_linear = 0.5*(torch.exp(-var_preds[..., :6])*torch.pow(diff[..., :6], 2)) + \
-                    0.5*var_preds[..., :6]
+        loss_var_linear = 0.5*(torch.exp(-var_preds[..., self.linear_var_mask]) * \
+                               torch.pow(diff[..., self.linear_var_mask], 2)) + \
+                          0.5*var_preds[..., self.linear_var_mask]
         s0 = 1.0 # Offset
         # TODO: Replace with torch.log(torch.i0()) when the gradient is implemented
         loss_var_angle = _log_modified_bessel_fn(torch.exp(-var_preds[..., 6]), order=0) - \
