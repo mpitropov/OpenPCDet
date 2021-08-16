@@ -9,6 +9,7 @@ from ...ops.roiaware_pool3d import roiaware_pool3d_utils
 from ...utils import common_utils
 from ..dataset import DatasetTemplate
 
+import time
 
 class NuScenesDataset(DatasetTemplate):
     def __init__(self, dataset_cfg, class_names, training=True, root_path=None, logger=None):
@@ -127,6 +128,8 @@ class NuScenesDataset(DatasetTemplate):
         return len(self.infos)
 
     def __getitem__(self, index):
+        self.start_time = time.time()
+
         if self._merge_all_iters_to_one_epoch:
             index = index % len(self.infos)
 
