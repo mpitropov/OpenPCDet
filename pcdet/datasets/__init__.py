@@ -16,6 +16,7 @@ from .kitti.kitti_dataset_mimo_var_c import KittiDatasetMIMOVARC
 from .kitti.kitti_tracking_dataset_mimo_var2 import KittiTrackingDatasetMIMOVAR2
 from .nuscenes.nuscenes_dataset import NuScenesDataset
 from .nuscenes.nuscenes_dataset_var import NuScenesDatasetVAR
+from .nuscenes.nuscenes_dataset_mimo_var_c import NuScenesDatasetMIMOVARC
 from .waymo.waymo_dataset import WaymoDataset
 from .cadc.cadc_dataset import CadcDataset
 from .cadc.cadc_dataset_var import CadcDatasetVAR
@@ -37,6 +38,7 @@ __all__ = {
     'KittiTrackingDatasetMIMOVAR2': KittiTrackingDatasetMIMOVAR2,
     'NuScenesDataset': NuScenesDataset,
     'NuScenesDatasetVAR': NuScenesDatasetVAR,
+    'NuScenesDatasetMIMOVARC': NuScenesDatasetMIMOVARC,
     'WaymoDataset': WaymoDataset,
     'CadcDataset': CadcDataset,
     'CadcDatasetVAR': CadcDatasetVAR,

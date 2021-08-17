@@ -1,10 +1,54 @@
 import numpy as np
 
+from ...utils import box_utils
 from .nuscenes_dataset import NuScenesDataset
 
-class NuScenesDatasetVAR(NuScenesDataset):
+class NuScenesDatasetMIMOVARC(NuScenesDataset):
+    def __init__(self, dataset_cfg, class_names, training=True, root_path=None, logger=None):
+        """
+        Args:
+            root_path:
+            dataset_cfg:
+            class_names:
+            training:
+            logger:
+        """
+        super().__init__(
+            dataset_cfg=dataset_cfg, class_names=class_names, training=training, root_path=root_path, logger=logger
+        )
+        # For MIMO
+        self.NUM_HEADS = dataset_cfg.NUM_HEADS
+
+    # Override the internal generate prediction dict function to perform it for each head
+    def generate_prediction_dicts(self, batch_dict, pred_dicts, class_names, output_path=None):
+        """
+        Args:
+            batch_dict:
+                frame_id:
+            pred_dicts: list of pred_dicts
+                pred_boxes: (N, 7), Tensor
+                pred_scores: (N), Tensor
+                pred_labels: (N), Tensor
+            class_names:
+            output_path:
+
+        Returns:
+
+        """
+        FRAME_NUM = 0 # Must have eval set to batch size of 1
+        ret_dict = self.orig_generate_prediction_dicts(batch_dict, pred_dicts, class_names, output_path)
+
+        # Generate prediction dicts for each head
+        ret_dict_list = []
+        for i in range(self.NUM_HEADS):
+            ret_dict_list.append(self.orig_generate_prediction_dicts( \
+                batch_dict, pred_dicts[FRAME_NUM]['pred_dicts_list'][i], class_names, output_path)[FRAME_NUM])
+        ret_dict[FRAME_NUM]['post_nms_head_outputs'] = ret_dict_list
+
+        return ret_dict
+
     @staticmethod
-    def generate_prediction_dicts(batch_dict, pred_dicts, class_names, output_path=None):
+    def orig_generate_prediction_dicts(batch_dict, pred_dicts, class_names, output_path=None):
         """
         Args:
             batch_dict:
