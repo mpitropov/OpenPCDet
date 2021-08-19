@@ -84,7 +84,7 @@ class NuScenesDatasetMIMOVARC(NuScenesDataset):
             if pred_scores.shape[0] == 0:
                 return pred_dict
 
-            pred_dict['feature'] = feature
+            # pred_dict['feature'] = feature
             pred_dict['name'] = np.array(class_names)[pred_labels - 1]
             pred_dict['score'] = pred_scores
             pred_dict['score_all'] = pred_scores_all

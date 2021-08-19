@@ -24,7 +24,7 @@ DATA_CONFIG:
                 'test': 30000
             }
     SAMPLED_INTERVAL: {
-        'train': 5,
+        'train': 10,
         'test': 1
     }
 
