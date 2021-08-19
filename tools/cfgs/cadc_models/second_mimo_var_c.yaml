@@ -15,9 +15,9 @@ DATA_CONFIG:
             'test': True # Set to true like NuScenes 
           }
 
-        # Same as NuScenes SECOND
+        # Same as NuScenes SECOND with voxel z size change
         - NAME: transform_points_to_voxels
-          VOXEL_SIZE: [0.1, 0.1, 0.2]
+          VOXEL_SIZE: [0.1, 0.1, 0.15] # Must subdivide z to 40 (6 m / 0.15 m = 40)
           MAX_POINTS_PER_VOXEL: 10
           MAX_NUMBER_OF_VOXELS: {
             'train': 60000,
