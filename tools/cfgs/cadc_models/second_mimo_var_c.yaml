@@ -12,7 +12,7 @@ DATA_CONFIG:
         - NAME: shuffle_points
           SHUFFLE_ENABLED: {
             'train': True,
-            'test': True # Set to true like NuScenes 
+            'test': True # Set to true like NuScenes
           }
 
         # Same as NuScenes SECOND with voxel z size change

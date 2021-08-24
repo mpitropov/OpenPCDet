@@ -14,35 +14,36 @@ DATA_CONFIG:
             'test': True # Set to true like NuScenes
           }
 
+        # Same as NuScenes SECOND with voxel z size change
         - NAME: transform_points_to_voxels
-          VOXEL_SIZE: [0.2, 0.2, 6]
-          MAX_POINTS_PER_VOXEL: 20
+          VOXEL_SIZE: [0.1, 0.1, 0.15] # Must subdivide z to 40 (6 m / 0.15 m = 40)
+          MAX_POINTS_PER_VOXEL: 10
           MAX_NUMBER_OF_VOXELS: {
-            'train': 30000,
-            'test': 30000
+            'train': 60000,
+            'test': 60000
           }
 
 MODEL:
-    NAME: PointPillarVAR
+    NAME: SECONDNetVAR
 
     VFE:
-        NAME: PillarVFE
-        WITH_DISTANCE: False
-        USE_ABSLOTE_XYZ: True
-        USE_NORM: True
-        NUM_FILTERS: [64]
+        NAME: MeanVFE
+
+    BACKBONE_3D:
+        NAME: VoxelBackBone8x
 
     MAP_TO_BEV:
-        NAME: PointPillarScatter
-        NUM_BEV_FEATURES: 64
+        NAME: HeightCompression
+        NUM_BEV_FEATURES: 256
 
     BACKBONE_2D:
         NAME: BaseBEVBackboneDropout
-        LAYER_NUMS: [3, 5, 5]
-        LAYER_STRIDES: [2, 2, 2]
-        NUM_FILTERS: [64, 128, 256]
-        UPSAMPLE_STRIDES: [0.5, 1, 2]
-        NUM_UPSAMPLE_FILTERS: [128, 128, 128]
+
+        LAYER_NUMS: [5, 5]
+        LAYER_STRIDES: [1, 2]
+        NUM_FILTERS: [128, 256]
+        UPSAMPLE_STRIDES: [1, 2]
+        NUM_UPSAMPLE_FILTERS: [256, 256]
 
     DENSE_HEAD:
         NAME: AnchorHeadSingleVAR
@@ -60,7 +61,7 @@ MODEL:
                 'anchor_rotations': [0, 1.57],
                 'anchor_bottom_heights': [-2.18],
                 'align_center': False,
-                'feature_map_stride': 4,
+                'feature_map_stride': 8,
                 'matched_threshold': 0.6,
                 'unmatched_threshold': 0.45
             },
@@ -70,7 +71,7 @@ MODEL:
                 'anchor_rotations': [0, 1.57],
                 'anchor_bottom_heights': [-2.03],
                 'align_center': False,
-                'feature_map_stride': 4,
+                'feature_map_stride': 8,
                 'matched_threshold': 0.5,
                 'unmatched_threshold': 0.35
             },
@@ -80,7 +81,7 @@ MODEL:
                 'anchor_rotations': [0, 1.57],
                 'anchor_bottom_heights': [-2.43],
                 'align_center': False,
-                'feature_map_stride': 4,
+                'feature_map_stride': 8,
                 'matched_threshold': 0.6,
                 'unmatched_threshold': 0.45
             }

@@ -14,18 +14,18 @@ DATA_CONFIG:
         - NAME: shuffle_points
           SHUFFLE_ENABLED: {
             'train': True,
-            'test': False
+            'test': True # Set to true like NuScenes
           }
 
         - NAME: transform_points_to_voxels
           VOXEL_SIZE: [0.2, 0.2, 6]
-          MAX_POINTS_PER_VOXEL: 32
+          MAX_POINTS_PER_VOXEL: 20
           NUM_HEADS: 2 # Located in 3 places
           MULTIPLY_POINTS_DURING_TRAINING: True # Point clouds are combined during training, then voxelized
           MULTIPLY_POINTS_DURING_TESTING: False # During testing only one point cloud is voxelized
           MAX_NUMBER_OF_VOXELS: {
-            'train': 16000,
-            'test': 40000
+            'train': 30000,
+            'test': 30000
           }
     POINT_FEATURE_ENCODING: {
         encoding_type: absolute_coordinates_encoding,
@@ -55,7 +55,7 @@ MODEL:
         LAYER_NUMS: [3, 5, 5]
         LAYER_STRIDES: [2, 2, 2]
         NUM_FILTERS: [64, 128, 256]
-        UPSAMPLE_STRIDES: [1, 2, 4]
+        UPSAMPLE_STRIDES: [0.5, 1, 2]
         NUM_UPSAMPLE_FILTERS: [128, 128, 128]
 
     DENSE_HEAD:
@@ -75,7 +75,7 @@ MODEL:
                 'anchor_rotations': [0, 1.57],
                 'anchor_bottom_heights': [-2.18],
                 'align_center': False,
-                'feature_map_stride': 2,
+                'feature_map_stride': 4,
                 'matched_threshold': 0.6,
                 'unmatched_threshold': 0.45
             },
@@ -85,7 +85,7 @@ MODEL:
                 'anchor_rotations': [0, 1.57],
                 'anchor_bottom_heights': [-2.03],
                 'align_center': False,
-                'feature_map_stride': 2,
+                'feature_map_stride': 4,
                 'matched_threshold': 0.5,
                 'unmatched_threshold': 0.35
             },
@@ -95,7 +95,7 @@ MODEL:
                 'anchor_rotations': [0, 1.57],
                 'anchor_bottom_heights': [-2.43],
                 'align_center': False,
-                'feature_map_stride': 2,
+                'feature_map_stride': 4,
                 'matched_threshold': 0.6,
                 'unmatched_threshold': 0.45
             }
