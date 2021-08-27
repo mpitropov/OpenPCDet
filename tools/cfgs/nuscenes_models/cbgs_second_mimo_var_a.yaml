@@ -3,7 +3,37 @@ CLASS_NAMES: ['car','truck', 'construction_vehicle', 'bus', 'trailer',
 
 DATA_CONFIG:
     _BASE_CONFIG_: cfgs/dataset_configs/nuscenes_dataset.yaml
-    DATASET: 'NuScenesDatasetVAR'
+    DATASET: 'NuScenesDatasetMIMOVARA'
+    NUM_HEADS: 2 # Must also be changed in the model config
+    INPUT_REPETITION: 0.0
+    BATCH_REPETITION: 1
+
+    DATA_PROCESSOR:
+        - NAME: mask_points_and_boxes_outside_range
+          REMOVE_OUTSIDE_BOXES: True
+
+        - NAME: shuffle_points
+          SHUFFLE_ENABLED: {
+            'train': True,
+            'test': True # This must be set True for MIMO Type A
+          }
+
+        - NAME: transform_points_to_voxels
+          VOXEL_SIZE: [0.1, 0.1, 0.2]
+          MAX_POINTS_PER_VOXEL: 10
+          NUM_HEADS: 2 # Located in 3 places
+          MULTIPLY_POINTS_DURING_TRAINING: False # During training only one point cloud is voxelized
+          MULTIPLY_POINTS_DURING_TESTING: True # Point clouds are combined during testing, then voxelized
+          MAX_NUMBER_OF_VOXELS: {
+            'train': 60000,
+            'test': 60000
+        }
+
+    POINT_FEATURE_ENCODING: { # Additional head_id feature
+        encoding_type: absolute_coordinates_encoding,
+        used_feature_list: ['x', 'y', 'z', 'intensity', 'timestamp', 'head_id'],
+        src_feature_list: ['x', 'y', 'z', 'intensity', 'timestamp', 'head_id'],
+    }
 
     SAMPLED_INTERVAL: {
         'train': 10,
@@ -11,7 +41,10 @@ DATA_CONFIG:
     }
 
 MODEL:
-    NAME: SECONDNetVAR
+    NAME: SECONDNetMIMOVAR
+    # Set to False for OpenPCDet Eval
+    # Set to True for Uncertainty Eval
+    OUTPUT_PRED_LIST: True
 
     VFE:
         NAME: MeanVFE
@@ -24,7 +57,7 @@ MODEL:
         NUM_BEV_FEATURES: 256
 
     BACKBONE_2D:
-        NAME: BaseBEVBackboneDropout
+        NAME: BaseBEVBackbone
 
         LAYER_NUMS: [5, 5]
         LAYER_STRIDES: [1, 2]
@@ -33,7 +66,8 @@ MODEL:
         NUM_UPSAMPLE_FILTERS: [256, 256]
 
     DENSE_HEAD:
-        NAME: AnchorHeadSingleVAR
+        NAME: AnchorHeadMIMO
+        NUM_HEADS: 2 # Must also be changed in the dataset config
         CLASS_AGNOSTIC: False
 
         USE_DIRECTION_CLASSIFIER: True
