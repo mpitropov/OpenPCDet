@@ -18,8 +18,11 @@ class NuScenesDatasetMIMOVARB(DatasetTemplate):
             training:
             logger:
         """
+        # To get it working for NuScenes since DatasetTemplate expects pkls in the data_path
+        dataset_cfg_copy = copy.deepcopy(dataset_cfg)
+        dataset_cfg_copy['DATA_PATH'] = dataset_cfg_copy['DATA_PATH'] + '/' + dataset_cfg_copy['VERSION']
         super().__init__(
-            dataset_cfg=dataset_cfg, class_names=class_names, training=training, root_path=root_path, logger=logger
+            dataset_cfg=dataset_cfg_copy, class_names=class_names, training=training, root_path=root_path, logger=logger
         )
 
         self.NUM_HEADS = dataset_cfg.NUM_HEADS

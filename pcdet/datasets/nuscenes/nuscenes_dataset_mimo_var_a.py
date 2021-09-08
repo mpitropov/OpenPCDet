@@ -3,6 +3,8 @@ import numpy as np
 from pathlib import Path
 from collections import defaultdict
 
+from torch.utils import data
+
 from ...utils import mimo_utils
 from .nuscenes_dataset_var import NuScenesDatasetVAR
 from ..dataset import DatasetTemplate
@@ -17,8 +19,11 @@ class NuScenesDatasetMIMOVARA(DatasetTemplate):
             training:
             logger:
         """
+        # To get it working for NuScenes since DatasetTemplate expects pkls in the data_path
+        dataset_cfg_copy = copy.deepcopy(dataset_cfg)
+        dataset_cfg_copy['DATA_PATH'] = dataset_cfg_copy['DATA_PATH'] + '/' + dataset_cfg_copy['VERSION']
         super().__init__(
-            dataset_cfg=dataset_cfg, class_names=class_names, training=training, root_path=root_path, logger=logger
+            dataset_cfg=dataset_cfg_copy, class_names=class_names, training=training, root_path=root_path, logger=logger
         )
 
         self.NUM_HEADS = dataset_cfg.NUM_HEADS
