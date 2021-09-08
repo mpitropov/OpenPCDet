@@ -3,8 +3,10 @@ CLASS_NAMES: ['car','truck', 'construction_vehicle', 'bus', 'trailer',
 
 DATA_CONFIG:
     _BASE_CONFIG_: cfgs/dataset_configs/nuscenes_dataset.yaml
-    DATASET: 'NuScenesDatasetMIMOVARC'
+    DATASET: 'NuScenesDatasetMIMOVARB'
     NUM_HEADS: 2 # Must also be changed in the model config
+    INPUT_REPETITION: 0.0
+    BATCH_REPETITION: 1
 
     DATA_PROCESSOR:
         -   NAME: mask_points_and_boxes_outside_range
@@ -13,12 +15,15 @@ DATA_CONFIG:
         -   NAME: shuffle_points
             SHUFFLE_ENABLED: {
                 'train': True,
-                'test': True
+                'test': True # Default is true for NuScenes
             }
 
         -   NAME: transform_points_to_voxels
             VOXEL_SIZE: [0.2, 0.2, 8.0]
             MAX_POINTS_PER_VOXEL: 20
+            NUM_HEADS: 2 # Located in 3 places
+            MULTIPLY_POINTS_DURING_TRAINING: True # Point clouds are combined during training, then voxelized
+            MULTIPLY_POINTS_DURING_TESTING: False # During testing only one point cloud is voxelized
             MAX_NUMBER_OF_VOXELS: {
                 'train': 30000,
                 'test': 30000
@@ -52,9 +57,6 @@ MODEL:
         NUM_FILTERS: [64, 128, 256]
         UPSAMPLE_STRIDES: [0.5, 1, 2]
         NUM_UPSAMPLE_FILTERS: [128, 128, 128]
-        NUM_HEADS: 2 # Must also be changed in the dense head config
-        INPUT_REPETITION: 0.0
-        BATCH_REPETITION: 1
 
     DENSE_HEAD:
         NAME: AnchorHeadMIMO
