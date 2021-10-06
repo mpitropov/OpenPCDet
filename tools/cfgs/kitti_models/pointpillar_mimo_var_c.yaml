@@ -138,11 +138,11 @@ MODEL:
             REG_LOSS_TYPE: VarRegLoss
             LOSS_WEIGHTS: {
                 'cls_weight': 1.0,
-                'loc_weight': 0.25,
+                'loc_weight': 2.0,
                 'dir_weight': 0.2,
                 'code_weights': [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0],
                 'loc_l1_weight': 1.0,
-                'loc_var_weight': 0.0
+                'loc_var_weight': 0.5
             }
 
     POST_PROCESSING:

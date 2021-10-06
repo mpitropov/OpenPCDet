@@ -2,8 +2,7 @@ CLASS_NAMES: ['Car', 'Pedestrian', 'Pickup_Truck']
 
 DATA_CONFIG: 
     _BASE_CONFIG_: cfgs/dataset_configs/cadc_dataset.yaml
-    DATASET: 'CadcDatasetMIMOVARC'
-    NUM_HEADS: 2 # Must also be changed in the model config
+    DATASET: 'CadcDatasetVAR'
     POINT_CLOUD_RANGE: [-51.2, -51.2, -3, 51.2, 51.2, 3]
     DATA_PROCESSOR:
         - NAME: mask_points_and_boxes_outside_range
@@ -24,10 +23,7 @@ DATA_CONFIG:
           }
 
 MODEL:
-    NAME: PointPillarMIMOVAR
-    # Set to False for OpenPCDet Eval
-    # Set to True for Uncertainty Eval
-    OUTPUT_PRED_LIST: True
+    NAME: PointPillarVAR
 
     VFE:
         NAME: PillarVFE
@@ -41,19 +37,15 @@ MODEL:
         NUM_BEV_FEATURES: 64
 
     BACKBONE_2D:
-        NAME: BaseBEVBackboneMIMO
+        NAME: BaseBEVBackboneDropout
         LAYER_NUMS: [3, 5, 5]
         LAYER_STRIDES: [2, 2, 2]
         NUM_FILTERS: [64, 128, 256]
         UPSAMPLE_STRIDES: [0.5, 1, 2]
         NUM_UPSAMPLE_FILTERS: [128, 128, 128]
-        NUM_HEADS: 2 # Must also be changed in the dense head config
-        INPUT_REPETITION: 0.0
-        BATCH_REPETITION: 1
 
     DENSE_HEAD:
-        NAME: AnchorHeadMIMO
-        NUM_HEADS: 2 # Must also be changed in the dataset config
+        NAME: AnchorHeadSingleVAR
         CLASS_AGNOSTIC: False
 
         USE_DIRECTION_CLASSIFIER: True
