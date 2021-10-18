@@ -13,5 +13,6 @@ docker run \
     -v "${HOST_KITTI_TRACKING_ROOT}":"${KITTI_TRACKING_ROOT}" \
     -v "${HOST_EVAL_ROOT}":"${EVAL_ROOT}" \
     -v "${HOST_LOGDIR}":"${LOGDIR}" \
+    -e TZ=America/New_York \
     $@ \
     pcdet-standalone

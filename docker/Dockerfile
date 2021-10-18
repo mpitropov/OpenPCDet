@@ -91,6 +91,7 @@ RUN APT_INSTALL="apt-get install -y --no-install-recommends" && \
         tensorboardX \
         tqdm \
         typing \
+        tzdata \
         h5py \
         uncertainty-calibration \
         && \
