@@ -65,11 +65,11 @@ MODEL:
         WITH_DISTANCE: False
         USE_ABSLOTE_XYZ: True
         USE_NORM: True
-        NUM_FILTERS: [64]
+        NUM_FILTERS: [128]
 
     MAP_TO_BEV:
         NAME: PointPillarScatter
-        NUM_BEV_FEATURES: 64
+        NUM_BEV_FEATURES: 128
 
     BACKBONE_2D:
         NAME: BaseBEVBackboneMIMO
