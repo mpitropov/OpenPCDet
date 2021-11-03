@@ -77,6 +77,7 @@ RUN APT_INSTALL="apt-get install -y --no-install-recommends" && \
         numpy \
         opencv-python \
         pillow \
+        prettytable \
         protobuf \
         psutil \
         pybind11 \

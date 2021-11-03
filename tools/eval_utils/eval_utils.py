@@ -61,6 +61,7 @@ def eval_one_epoch(cfg, model, dataloader, epoch_id, logger, dist_test=False, sa
     for i, batch_dict in enumerate(dataloader):
         load_data_to_gpu(batch_dict)
         with torch.no_grad():
+            batch_dict['logger'] = logger # Used to log time to the backbone
             t0 = time.time()
             batch_dict['start_time'] = t0 # Used to time to the backbone
             pred_dicts, ret_dict = model(batch_dict)
@@ -80,6 +81,7 @@ def eval_one_epoch(cfg, model, dataloader, epoch_id, logger, dist_test=False, sa
             progress_bar.update()
 
     print('mean forward pass time', np.mean(time_diff_list))
+    logger.info('mean forward pass time: %.4f s' % np.mean(time_diff_list))
 
     if cfg.LOCAL_RANK == 0:
         progress_bar.close()

@@ -191,5 +191,6 @@ class DatasetTemplate(torch_data.Dataset):
             self.time_list.append(total_time)
             if self.frame_count == self.__len__():
                 print('Mean data processing time', np.mean(self.time_list))
+                self.logger.info('Mean data processing time: %.4f s' % np.mean(self.time_list))
 
         return ret

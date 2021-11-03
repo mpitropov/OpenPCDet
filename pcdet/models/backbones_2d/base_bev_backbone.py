@@ -96,6 +96,7 @@ class BaseBEVBackbone(nn.Module):
         #     self.bb_frame_count += 1
         #     if self.bb_frame_count == 3769:
         #         print('mean time to backbone', np.mean(self.bb_time_diffs))
+        #         data_dict['logger'].info('mean time to backbone: %.4f s' % np.mean(self.bb_time_diffs))
 
         spatial_features = data_dict['spatial_features']
         ups = []

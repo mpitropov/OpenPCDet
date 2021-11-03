@@ -111,7 +111,7 @@ MODEL:
                 'dir_weight': 0.2,
                 'code_weights': [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0],
                 'loc_l1_weight': 1.0,
-                'loc_var_weight': 0.5
+                'loc_var_weight': 0.05
             }
 
     POST_PROCESSING:
