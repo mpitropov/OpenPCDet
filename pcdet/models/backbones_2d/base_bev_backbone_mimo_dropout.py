@@ -4,7 +4,7 @@ from torch._C import TensorType
 import torch.nn as nn
 import copy
 
-class BaseBEVBackboneMIMO(nn.Module):
+class BaseBEVBackboneMIMODropout(nn.Module):
     def __init__(self, model_cfg, input_channels):
         super().__init__()
         self.model_cfg = model_cfg
