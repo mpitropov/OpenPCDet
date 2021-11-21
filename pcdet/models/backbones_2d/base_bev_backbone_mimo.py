@@ -3,6 +3,7 @@ import torch
 from torch._C import TensorType
 import torch.nn as nn
 import copy
+import time
 
 class BaseBEVBackboneMIMO(nn.Module):
     def __init__(self, model_cfg, input_channels):
@@ -91,6 +92,10 @@ class BaseBEVBackboneMIMO(nn.Module):
 
         self.num_bev_features = c_in
 
+        # For timing
+        self.bb_frame_count = 0
+        self.bb_time_diffs = []
+
     def forward(self, data_dict):
         """
         Args:
@@ -116,6 +121,14 @@ class BaseBEVBackboneMIMO(nn.Module):
             self.rng.shuffle(rand_portion)
             frame_list.append(np.concatenate([rand_portion, main_shuffle[to_shuffle:]]))
         frame_list = np.transpose(frame_list)
+
+        # Timing count
+        # if not self.training:
+        #     self.bb_time_diffs.append(time.time() - data_dict['start_time'])
+        #     self.bb_frame_count += 1
+        #     if self.bb_frame_count == 3769:
+        #         print('mean time to backbone', np.mean(self.bb_time_diffs))
+        #         data_dict['logger'].info('mean time to backbone: %.4f s' % np.mean(self.bb_time_diffs))
 
         gt_boxes = [] # This is simply an array of GTs to add
         spatial_feats = [] # This is a bit more complex each row is a head and columns are things to add to that head
