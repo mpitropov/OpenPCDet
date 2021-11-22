@@ -1,4 +1,4 @@
-# Martin Ma - 2020/08/14
+# ANONYMOUS - 2020/08/14
 
 # NOTE: This can be used to cluster the outputs from MIMO heads
 # We currently don't use it because we evaluate with the UncertaintyEval code

@@ -1,6 +1,5 @@
 DATASET: 'CadcDataset'
 DATA_PATH: '/root/cadc'
-# DATA_PATH: '/home/matthew/git/cadc_testing/WISEOpenLidarPerceptron/data/cadc'
 
 POINT_CLOUD_RANGE: [-51.2, -51.2, -3, 51.2, 51.2, 3]
 FILTER_MIN_POINTS_IN_GT: 5 # Applied during training only
