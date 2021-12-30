@@ -2,7 +2,7 @@ CLASS_NAMES: ['Car', 'Pedestrian', 'Pickup_Truck']
 
 DATA_CONFIG: 
     _BASE_CONFIG_: cfgs/dataset_configs/cadc_dataset.yaml
-    POINT_CLOUD_RANGE: [-50, -50, -5, 50, 50, 3]
+    POINT_CLOUD_RANGE: [-51.2, -51.2, -3, 51.2, 51.2, 3]
     DATA_PROCESSOR:
         - NAME: mask_points_and_boxes_outside_range
           REMOVE_OUTSIDE_BOXES: True
@@ -10,15 +10,15 @@ DATA_CONFIG:
         - NAME: shuffle_points
           SHUFFLE_ENABLED: {
             'train': True,
-            'test': False
+            'test': True # Set to true like NuScenes
           }
 
         - NAME: transform_points_to_voxels
-          VOXEL_SIZE: [0.25, 0.25, 8]
-          MAX_POINTS_PER_VOXEL: 64
+          VOXEL_SIZE: [0.2, 0.2, 6]
+          MAX_POINTS_PER_VOXEL: 20
           MAX_NUMBER_OF_VOXELS: {
-            'train': 16000,
-            'test': 40000
+            'train': 30000,
+            'test': 30000
           }
 
 MODEL:
@@ -40,7 +40,7 @@ MODEL:
         LAYER_NUMS: [3, 5, 5]
         LAYER_STRIDES: [2, 2, 2]
         NUM_FILTERS: [64, 128, 256]
-        UPSAMPLE_STRIDES: [1, 2, 4]
+        UPSAMPLE_STRIDES: [0.5, 1, 2]
         NUM_UPSAMPLE_FILTERS: [128, 128, 128]
 
     DENSE_HEAD:
@@ -55,31 +55,31 @@ MODEL:
         ANCHOR_GENERATOR_CONFIG: [
             {
                 'class_name': 'Car',
-                'anchor_sizes': [[3.9, 1.6, 1.56]],
+                'anchor_sizes': [[4.58, 1.88, 1.67]],
                 'anchor_rotations': [0, 1.57],
-                'anchor_bottom_heights': [-1.78],
+                'anchor_bottom_heights': [-2.18],
                 'align_center': False,
-                'feature_map_stride': 2,
+                'feature_map_stride': 4,
                 'matched_threshold': 0.6,
                 'unmatched_threshold': 0.45
             },
             {
                 'class_name': 'Pedestrian',
-                'anchor_sizes': [[0.8, 0.6, 1.73]],
+                'anchor_sizes': [[0.80, 0.75, 1.76]],
                 'anchor_rotations': [0, 1.57],
-                'anchor_bottom_heights': [-0.6],
+                'anchor_bottom_heights': [-2.03],
                 'align_center': False,
-                'feature_map_stride': 2,
+                'feature_map_stride': 4,
                 'matched_threshold': 0.5,
                 'unmatched_threshold': 0.35
             },
             {
                 'class_name': 'Pickup_Truck',
-                'anchor_sizes': [[5.89, 2.03, 1.92]],
+                'anchor_sizes': [[5.76, 2.09, 2.01]],
                 'anchor_rotations': [0, 1.57],
-                'anchor_bottom_heights': [-0.6],
+                'anchor_bottom_heights': [-2.43],
                 'align_center': False,
-                'feature_map_stride': 2,
+                'feature_map_stride': 4,
                 'matched_threshold': 0.6,
                 'unmatched_threshold': 0.45
             }
